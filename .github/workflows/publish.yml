@@ -5,7 +5,7 @@ on:
   repository_dispatch:
     types: [seanime_release]
   schedule:
-    - cron: '0 0 * * *'  # Run daily to check for new releases
+    - cron: "0 0 * * *" # Run daily to check for new releases
 
 jobs:
   check_and_build:
@@ -61,7 +61,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: umagistr/seanime
+          images: ju1js/seanime
           tags: |
             type=raw,value=${{ steps.seanime_release.outputs.LATEST_RELEASE }}
             type=raw,value=latest
