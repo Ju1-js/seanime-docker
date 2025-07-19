@@ -2,6 +2,21 @@ name: Publish Docker image
 
 on:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Type of build to run'
+        required: true
+        type: choice
+        options:
+          - release
+          - dev
+        default: 'release'
+      repo:
+        description: 'For dev build: Repo to build from (e.g., Ju1-js/seanime)'
+        required: false
+      branch:
+        description: 'For dev build: Branch to build (e.g., feature/TLS)'
+        required: false
   repository_dispatch:
     types: [seanime_release]
   schedule:
@@ -9,17 +24,21 @@ on:
 
 jobs:
   check_and_build:
-    name: Check for new release and build multiarch Docker image
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
     permissions:
       packages: write
       contents: write
-      id-token: write
+
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
 
+      # =================================================================
+      #  RELEASE BUILD LOGIC - Runs on schedule or if build_type is 'release'
+      # =================================================================
       - name: Get latest release of 5rahim/seanime
+        if: github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch'
         id: seanime_release
         run: |
           LATEST_RELEASE=$(curl -s https://api.github.com/repos/5rahim/seanime/releases/latest | jq -r .tag_name)
@@ -27,6 +46,7 @@ jobs:
           echo "Latest 5rahim/seanime release: ${LATEST_RELEASE}"
 
       - name: Check if build is needed
+        if: github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch'
         id: check_build
         run: |
           CURRENT_VERSION=$(cat .version 2>/dev/null || echo "none")
@@ -38,49 +58,70 @@ jobs:
             echo "No new version. Skipping build."
           fi
 
-      - name: Prepare the repository
-        if: steps.check_build.outputs.BUILD_NEEDED == 'true'
+      - name: Prepare Repository (Release)
+        if: steps.check_build.outputs.BUILD_NEEDED == 'true' && (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch')
         run: |
           chmod +x ./.docker/prepare.sh
           ./.docker/prepare.sh ${{ steps.seanime_release.outputs.LATEST_RELEASE }}
         shell: bash
 
+      # =================================================================
+      #  DEV BUILD LOGIC - Runs only if build_type is 'dev'
+      # =================================================================
+      - name: Prepare Repository (Dev)
+        if: github.event.inputs.build_type == 'dev'
+        run: |
+          echo "DEV BUILD: Cloning from ${{ github.event.inputs.repo }} at branch ${{ github.event.inputs.branch }}"
+          git clone https://github.com/${{ github.event.inputs.repo }}.git seanime_source
+          cd seanime_source
+          git checkout ${{ github.event.inputs.branch }}
+          cd ..
+          # Move the cloned files to the root, making them the build context
+          mv seanime_source/* .
+
+      # =================================================================
+      #  COMMON BUILD STEPS
+      # =================================================================
       - name: Set up Docker Buildx
-        if: steps.check_build.outputs.BUILD_NEEDED == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        if: steps.check_build.outputs.BUILD_NEEDED == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        if: steps.check_build.outputs.BUILD_NEEDED == 'true'
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ju1js/seanime
-          tags: |
-            type=raw,value=${{ steps.seanime_release.outputs.LATEST_RELEASE }}
-            type=raw,value=latest
-
-      - name: Build and push multiarch Docker image
-        if: steps.check_build.outputs.BUILD_NEEDED == 'true'
+      # --- Build and Push Release Image ---
+      - name: Build and push Release Docker image
+        if: steps.check_build.outputs.BUILD_NEEDED == 'true' && (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch')
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./.docker/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64,linux/arm/v7
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ju1js/seanime:${{ steps.seanime_release.outputs.LATEST_RELEASE }},ju1js/seanime:latest
           build-args: |
             SEANIME_VERSION=${{ steps.seanime_release.outputs.LATEST_RELEASE }}
 
+      # --- Build and Push Dev Image ---
+      - name: Build and push Dev Docker image
+        if: github.event.inputs.build_type == 'dev'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./.docker/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          tags: ju1js/seanime:dev
+          build-args: |
+            SEANIME_VERSION=dev-${{ github.sha }}
+
+      # =================================================================
+      #  POST-BUILD STEPS (Release Only)
+      # =================================================================
       - name: Update version file
-        if: steps.check_build.outputs.BUILD_NEEDED == 'true'
+        if: steps.check_build.outputs.BUILD_NEEDED == 'true' && (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch')
         run: |
           echo "${{ steps.seanime_release.outputs.LATEST_RELEASE }}" > .version
           git config user.name github-actions
