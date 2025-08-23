@@ -37,41 +37,16 @@ RUN if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then \
 FROM --platform=$TARGETPLATFORM alpine:latest
 
 # Install necessary packages
-RUN apk add --no-cache \
-    qbittorrent-nox \
-    supervisor \
-    ffmpeg
+RUN apk add --no-cache ffmpeg
 
 # Copy the Go-built application from the previous stage
 COPY --from=go-builder /tmp/build/seanime /app/
 
-# Create directories for qBittorrent and Supervisord
-RUN mkdir -p /data /var/log/supervisor
-
 # Work in /app directory
 WORKDIR /app
 
-# Add QBittorrent configuration file
-#
-# The default credentials are:
-# Username: admin
-# Password: adminadmin
-COPY ./.docker/config /config
+# Expose port 43211
+EXPOSE 43211
 
-# Create and use seanime-user
-RUN adduser -D seanime-user
-RUN chown -R seanime-user:seanime-user /config
-RUN chown -R seanime-user:seanime-user /data
-RUN chown -R seanime-user:seanime-user /var/log/supervisor
-
-USER seanime-user
-
-# Define volumes for persistent data
-VOLUME /data
-VOLUME /config
-
-# Expose ports: 43211 for Seanime, 43212 for qBittorrent Web UI
-EXPOSE 43211 43212
-
-# Start both services via Supervisord
-CMD ["/usr/bin/supervisord", "-c", "/config/Supervisord/supervisord.conf"]
+# Command to run the application
+CMD ["/app/seanime"]
