@@ -2,19 +2,21 @@
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/ju1js/seanime.svg)](https://hub.docker.com/r/ju1js/seanime)
 
-This repository provides a simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a self-hosted anime streaming platform. It re-integrates [Coyenn's](https://github.com/Coyenn/seanime-docker) original image with [umag's](https://github.com/umag/seanime-docker) multi-architecture support. Video transcoding via [FFmpeg](https://ffmpeg.org/) is included and works out of the box.
+This repository provides a simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a self-hosted anime streaming platform. Video transcoding via [FFmpeg](https://ffmpeg.org/) is included and works out of the box.
 
 ## Table of Contents
 
-- [Platform Support](#platform-support)
-- [Usage](#usage)
-    - [Docker CLI](#docker-cli)
-    - [Docker Compose](#docker-compose)
-- [Configuration](#configuration)
-    - [Ports](#ports)
-    - [Volumes](#volumes)
-- [Contributing](#contributing)
-- [License](#license)
+*   [Platform Support](#platform-support)
+*   [Usage](#usage)
+    *   [Docker CLI](#docker-cli)
+    *   [Docker Compose (Basic)](#docker-compose-basic)
+    *   [Docker Compose (Advanced with VPN)](#docker-compose-advanced-with-vpn)
+*   [Configuration](#configuration)
+    *   [Ports](#ports)
+    *   [Volumes](#volumes)
+    *   [Environment Variables](#environment-variables)
+*   [Contributing](#contributing)
+*   [License](#license)
 
 ## Platform Support
 
@@ -35,105 +37,143 @@ You can run the Seanime Docker image using either the Docker command-line interf
 To quickly get started, you can use the following Docker command to run the Seanime container:
 
 ```bash
-docker run -it -p 3000:8080 -p 3001:8081 --restart=always --name seanime ju1js/seanime
+docker run -d \
+  -p 43211:43211 \
+  -v ./seanime-config:/root/.config/Seanime \
+  --restart=unless-stopped \
+  --name seanime \
+  ju1js/seanime
 ```
 
-### Docker Compose
+### Docker Compose (Basic)
 
-For more complex setups, it is recommended to use Docker Compose.
-
-#### Persisting Configuration
-
-If you want to persist your Seanime and qBittorrent settings, you'll need to use a bind mount for the `/config` directory. Before you use this volume mount in your `docker-compose.yml`, you **must** first copy the default configuration files from this repository to a folder on your host machine.
-
-You can find the necessary files at the following location in the repository:
-[**`.docker/config`**](https://github.com/Ju1-js/seanime-docker/tree/main/.docker/config) [Download](https://download-directory.github.io/?url=https%3A%2F%2Fgithub.com%2FJu1-js%2Fseanime-docker%2Ftree%2Fmain%2F.docker%2Fconfig)
-
-Create a folder (e.g., `seanime-config`) on your host machine and copy the contents of the repository's `.docker/config` directory into it.
-
-#### Basic Example
-
-Here is a basic `docker-compose.yml` file to run Seanime.
+For a simple setup using Docker Compose, create a `docker-compose.yml` file with the following content:
 
 ```yaml
 services:
-    seanime:
-        image: ju1js/seanime
-        container_name: seanime
-        ports:
-            - "3000:8080" # Seanime web interface
-            - "3001:8081" # qBittorrent web interface
-        volumes:
-            - ./seanime-data:/data # Bind mount for downloads and media files
-            # IMPORTANT: See "Persisting Configuration" above before uncommenting the next line.
-            # - ./seanime-config:/config # Bind mount for configuration files
-        restart: unless-stopped
+  seanime:
+    image: ju1js/seanime
+    container_name: seanime
+    ports:
+      - "43211:43211"
+    volumes:
+      - ./seanime-config:/root/.config/Seanime
+      - ./seanime-data:/data # Optional: Mount a directory for your media
+    restart: unless-stopped
 ```
 
-#### Example with Wireguard
+### Docker Compose (Advanced with VPN)
 
-For users who want to route the container's traffic through a WireGuard VPN, you can use the following `docker-compose.yml` configuration. This is useful for enhancing privacy and bypassing network restrictions.
+This example demonstrates routing the container's traffic through a WireGuard VPN using [Gluetun](https://github.com/qdm12/gluetun) and includes a Transmission torrent client.
 
-In this setup, the `seanime` container uses the network of the `wireguard` container.
+First, create an `.env` file in the same directory as your `docker-compose.yml` to define your environment variables:
+
+```env
+# General Settings
+PUID=1000
+PGID=1000
+TZ=Etc/UTC
+
+# Seanime
+SEANIME_UI_PORT=43211
+
+# Transmission
+TRANSMISSION_WEB_PORT=9091
+TRANSMISSION_PEER_PORT=51413
+TRANSMISSION_USER=user
+TRANSMISSION_PASS=password
+
+# Gluetun - See https://github.com/qdm12/gluetun-wiki/tree/main/setup
+VPN_SERVICE_PROVIDER=
+VPN_TYPE=
+WIREGUARD_PRIVATE_KEY=
+WIREGUARD_ADDRESSES=
+OPENVPN_USER=
+OPENVPN_PASSWORD=
+SERVER_COUNTRIES=
+SERVER_CITIES=
+```
+
+Next, create the `docker-compose.yml` file:
 
 ```yaml
 services:
-    wireguard:
-        image: lscr.io/linuxserver/wireguard:latest
-        container_name: wireguard
-        pull_policy: always
-        cap_add:
-            - NET_ADMIN
-            - SYS_MODULE
-        environment:
-            - PUID=1000
-            - PGID=1000
-            - TZ=Etc/UTC
-        volumes:
-            - ./wireguard-config:/config # Path for WireGuard client config (e.g., wg0.conf)
-            - /lib/modules:/lib/modules
-        # All ports for services using WireGuard's network must be exposed here
-        ports:
-            - "3000:8080" # Seanime web interface
-            - "3001:8081" # qBittorrent web interface
-            - "51820:51820/udp" # WireGuard's own port
-        sysctls:
-            - net.ipv4.conf.all.src_valid_mark=1
-        restart: unless-stopped
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      # See https://github.com/qdm12/gluetun-wiki for provider-specific variables
+      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER}
+      - VPN_TYPE=${VPN_TYPE}
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
+      - SERVER_COUNTRIES=${SERVER_COUNTRIES}
+      - SERVER_CITIES=${SERVER_CITIES}
+      - FIREWALL_INPUT_PORTS=${SEANIME_UI_PORT},${TRANSMISSION_WEB_PORT}
+      - TZ=${TZ}
+    ports:
+      - "${SEANIME_UI_PORT}:${SEANIME_UI_PORT}" # Seanime WebUI
+      - "${TRANSMISSION_WEB_PORT}:9091" # Transmission WebUI
+      - "${TRANSMISSION_PEER_PORT}:${TRANSMISSION_PEER_PORT}" # Transmission Peer Port
+      - "${TRANSMISSION_PEER_PORT}:${TRANSMISSION_PEER_PORT}/udp" # Transmission Peer Port
+    restart: unless-stopped
 
-    seanime:
-        image: ju1js/seanime
-        container_name: seanime
-        pull_policy: always
-        # This container's network is handled by the wireguard service
-        network_mode: "service:wireguard"
-        volumes:
-            - ./seanime-data:/data # Path for downloads and media files
-            # IMPORTANT: See "Persisting Configuration" above before creating this volume.
-            - ./seanime-config:/config # Path for Seanime's configuration files
-        # Depends on wireguard to ensure it starts first
-        depends_on:
-            - wireguard
-        restart: unless-stopped
+  seanime:
+    image: ju1js/seanime
+    container_name: seanime
+    network_mode: "service:gluetun"
+    environment:
+      - SEANIME_SERVER_HOST=0.0.0.0
+      - SEANIME_SERVER_PORT=${SEANIME_UI_PORT}
+    volumes:
+      - ./config/seanime:/root/.config/Seanime
+      - ./data:/data # Media directory
+    depends_on:
+      - gluetun
+    restart: unless-stopped
+
+  transmission:
+    image: lscr.io/linuxserver/transmission:latest
+    container_name: transmission
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - USER=${TRANSMISSION_USER}
+      - PASS=${TRANSMISSION_PASS}
+      - PEERPORT=${TRANSMISSION_PEER_PORT}
+    volumes:
+      - ./config/transmission:/config
+      - ./data:/downloads # Downloads directory, shared with Seanime
+    depends_on:
+      - gluetun
+    restart: unless-stopped
 ```
 
 ## Configuration
 
 ### Ports
 
-- **`8080`**: The web interface for Seanime.
-- **`8081`**: The web interface for the built-in qBittorrent client.
+*   **`43211`**: The default internal port for the Seanime web interface.
 
 ### Volumes
 
-- **`/data`**: This volume is used to store downloaded media files. You should map this to a directory on your host machine to persist your media.
-- **`/config`**: This volume stores the configuration files for Seanime, qBittorrent, and Supervisor. It is recommended to map this to a host directory to maintain your settings across container restarts.
+*   **`/root/.config/Seanime`**: Stores the configuration files for Seanime.
+*   **`/data`**: A common directory for storing your media files. This is not mandatory but recommended for organization.
 
-`/config` - This is where the configuration files for Seanime, qBittorrent, and Supervisor are located.
+### Environment Variables
+
+*   **`SEANIME_SERVER_HOST`**: Overrides the default server host (`0.0.0.0`).
+*   **`SEANIME_SERVER_PORT`**: Overrides the default server port inside the container (`43211`).
 
 ## Contributing
 
-Contributions are welcome! If you have any suggestions, bug reports, or feature requests, please open an issue or submit a pull request on the [GitHub repository](https://github.com/ju1js/seanime-docker).
+Contributions are welcome! If you have any suggestions, bug reports, or feature requests, please open an issue or submit a pull request on the [GitHub repository](https://github.com/Ju1-js/seanime-docker).
 
 ## License
 
