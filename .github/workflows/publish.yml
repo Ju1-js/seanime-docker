@@ -100,7 +100,7 @@ jobs:
           file: ./.docker/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: pbjey/seanime:${{ steps.seanime_release.outputs.LATEST_RELEASE }},pbjey/seanime:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/seanime:${{ steps.seanime_release.outputs.LATEST_RELEASE }},${{ secrets.DOCKER_USERNAME }}/seanime:latest
           build-args: |
             SEANIME_VERSION=${{ steps.seanime_release.outputs.LATEST_RELEASE }}
 
@@ -113,7 +113,7 @@ jobs:
           file: ./.docker/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: pbjey/seanime:dev
+          tags: ${{ secrets.DOCKER_USERNAME }}/seanime:dev
           build-args: |
             SEANIME_VERSION=dev-${{ github.sha }}
 
