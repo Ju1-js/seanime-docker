@@ -11,7 +11,7 @@ COPY ./seanime-web /tmp/build
 
 WORKDIR /tmp/build
 
-RUN npm ci
+RUN npm install
 RUN npm run build
 
 # Stage 2: Go Builder
