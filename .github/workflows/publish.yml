@@ -99,7 +99,7 @@ jobs:
           context: .
           file: ./.docker/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           tags: ju1js/seanime:${{ steps.seanime_release.outputs.LATEST_RELEASE }},ju1js/seanime:latest
           build-args: |
             SEANIME_VERSION=${{ steps.seanime_release.outputs.LATEST_RELEASE }}
@@ -112,7 +112,7 @@ jobs:
           context: .
           file: ./.docker/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           tags: ju1js/seanime:dev
           build-args: |
             SEANIME_VERSION=dev-${{ github.sha }}
