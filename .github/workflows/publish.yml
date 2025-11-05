@@ -4,18 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Type of build to run'
+        description: "Type of build to run"
         required: true
         type: choice
         options:
           - release
           - dev
-        default: 'release'
+        default: "dev"
       repo:
-        description: 'For dev build: Repo to build from (e.g., Ju1-js/seanime)'
+        description: "For dev build: Repo to build from (e.g., Ju1-js/seanime)"
         required: false
       branch:
-        description: 'For dev build: Branch to build (e.g., feature/TLS)'
+        description: "For dev build: Branch to build (e.g., feature/TLS)"
         required: false
   repository_dispatch:
     types: [seanime_release]
@@ -29,6 +29,7 @@ jobs:
     permissions:
       packages: write
       contents: write
+      id-token: write
 
     steps:
       - name: Check out the repo
@@ -57,6 +58,20 @@ jobs:
             echo "BUILD_NEEDED=false" >> $GITHUB_OUTPUT
             echo "No new version. Skipping build."
           fi
+      - uses: jlumbroso/free-disk-space@main
+        if: steps.check_build.outputs.BUILD_NEEDED == 'true'
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
+          # all of these default to true, but feel free to set to
+          # "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
 
       - name: Prepare Repository (Release)
         if: steps.check_build.outputs.BUILD_NEEDED == 'true' && (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch')
@@ -91,6 +106,16 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ju1js/seanime
+          tags: |
+            type=raw,value=${{ steps.seanime_release.outputs.LATEST_RELEASE }},enable=${{ (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch') }}
+            type=raw,value=latest,enable=${{ (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch') }}
+            type=raw,value=dev,enable=${{ github.event.inputs.build_type == 'dev' }}
+
       # --- Build and Push Release Image ---
       - name: Build and push Release Docker image
         if: steps.check_build.outputs.BUILD_NEEDED == 'true' && (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch')
@@ -99,8 +124,9 @@ jobs:
           context: .
           file: ./.docker/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ secrets.DOCKER_USERNAME }}/seanime:${{ steps.seanime_release.outputs.LATEST_RELEASE }},${{ secrets.DOCKER_USERNAME }}/seanime:latest
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v7
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SEANIME_VERSION=${{ steps.seanime_release.outputs.LATEST_RELEASE }}
 
@@ -112,14 +138,10 @@ jobs:
           context: .
           file: ./.docker/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ secrets.DOCKER_USERNAME }}/seanime:dev
-          build-args: |
-            SEANIME_VERSION=dev-${{ github.sha }}
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v7
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-      # =================================================================
-      #  POST-BUILD STEPS (Release Only)
-      # =================================================================
       - name: Update version file
         if: steps.check_build.outputs.BUILD_NEEDED == 'true' && (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch')
         run: |
