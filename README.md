@@ -2,21 +2,26 @@
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/ju1js/seanime.svg)](https://hub.docker.com/r/ju1js/seanime)
 
-This repository provides a simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a self-hosted anime streaming platform. Video transcoding via [FFmpeg](https://ffmpeg.org/) is included and works out of the box.
+A simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a self-hosted anime streaming platform. Video transcoding via [FFmpeg](https://ffmpeg.org/) is included and works out of the box.
+
+## Notes:
+
+- `Release` is effectively identical to umagistr's image, `Dev` targets the TLS PR.
+- `arm/v7` support disabled since version 3.0.0 till 5rahim finds workaround (from umag's repo)
 
 ## Table of Contents
 
-*   [Platform Support](#platform-support)
-*   [Usage](#usage)
-    *   [Docker CLI](#docker-cli)
-    *   [Docker Compose (Basic)](#docker-compose-basic)
-    *   [Docker Compose (Advanced with VPN)](#docker-compose-advanced-with-vpn)
-*   [Configuration](#configuration)
-    *   [Ports](#ports)
-    *   [Volumes](#volumes)
-    *   [Environment Variables](#environment-variables)
-*   [Contributing](#contributing)
-*   [License](#license)
+- [Platform Support](#platform-support)
+- [Usage](#usage)
+  - [Docker CLI](#docker-cli)
+  - [Docker Compose (Basic)](#docker-compose-basic)
+  - [Docker Compose (Advanced with VPN)](#docker-compose-advanced-with-vpn)
+- [Configuration](#configuration)
+  - [Ports](#ports)
+  - [Volumes](#volumes)
+  - [Environment Variables](#environment-variables)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Platform Support
 
@@ -24,7 +29,7 @@ This Docker image is built with multi-architecture support and should be compati
 
 - **`linux/amd64`** - For standard x86-64 PCs and servers.
 - **`linux/arm64`** - For 64-bit ARM devices like the Raspberry Pi 4 and 5.
-- **`linux/arm/v7`** - For older 32-bit ARM devices.
+- **New versions disabled:** **`linux/arm/v7`** - For older 32-bit ARM devices.
 
 **Note:** While the image is built for all the above platforms, it is primarily tested and used on a Raspberry Pi 5 (`linux/arm64`). Feedback and issue reports for all platforms are highly encouraged and appreciated!
 
@@ -159,17 +164,17 @@ services:
 
 ### Ports
 
-*   **`43211`**: The default internal port for the Seanime web interface.
+- **`43211`**: The default internal port for the Seanime web interface.
 
 ### Volumes
 
-*   **`/root/.config/Seanime`**: Stores the configuration files for Seanime.
-*   **`/data`**: A common directory for storing your media files. This is not mandatory but recommended for organization.
+- **`/root/.config/Seanime`**: Stores the configuration files for Seanime.
+- **`/data`**: A common directory for storing your media files. This is not mandatory but recommended for organization.
 
 ### Environment Variables
 
-*   **`SEANIME_SERVER_HOST`**: Overrides the default server host (`0.0.0.0`).
-*   **`SEANIME_SERVER_PORT`**: Overrides the default server port inside the container (`43211`).
+- **`SEANIME_SERVER_HOST`**: Overrides the default server host (`0.0.0.0`).
+- **`SEANIME_SERVER_PORT`**: Overrides the default server port inside the container (`43211`).
 
 ## Contributing
 
