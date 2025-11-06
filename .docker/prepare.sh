@@ -3,13 +3,10 @@
 set -e
 cd "$(dirname "$0")"/../
 
-# Clone the latest version of Seanime
-git clone https://github.com/5rahim/seanime.git
+RELEASE_TAG=$1
 
-# Checkout the specified release tag
-cd seanime
-git checkout $1
-cd ..
+# Download the source code as a .tar.gz archive, which is much faster than cloning
+echo "Downloading source for tag ${RELEASE_TAG}..."
+curl -Ls "https://github.com/5rahim/seanime/archive/refs/tags/${RELEASE_TAG}.tar.gz" | tar -xz --strip-components=1
 
-# Move the files to the root of the project
-mv seanime/* .
+echo "Source code prepared."
