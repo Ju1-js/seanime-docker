@@ -4,7 +4,7 @@
 
 A simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a self-hosted anime streaming platform. Video transcoding via [FFmpeg](https://ffmpeg.org/) is included and works out of the box.
 
-*`Release` is effectively identical to umagistr's image, `Dev` targets the TLS PR.*
+`Release` is effectively identical to umagistr's image, `Dev` targets the TLS PR.
 
 ## Table of Contents
 
