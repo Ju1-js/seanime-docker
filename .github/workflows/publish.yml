@@ -11,6 +11,11 @@ on:
           - release
           - dev
         default: "dev"
+      force_build:
+        description: "For release build: Force a build even if versions match"
+        required: true
+        type: boolean
+        default: false
       repo:
         description: "For dev build: Repo to build from (e.g., Ju1-js/seanime)"
         required: false
@@ -51,12 +56,16 @@ jobs:
         id: check_build
         run: |
           CURRENT_VERSION=$(cat .version 2>/dev/null || echo "none")
-          if [ "${{ steps.seanime_release.outputs.LATEST_RELEASE }}" != "${CURRENT_VERSION}" ]; then
+          if [ "${{ steps.seanime_release.outputs.LATEST_RELEASE }}" != "${CURRENT_VERSION}" ] || [ "${{ github.event.inputs.force_build }}" == "true" ]; then
             echo "BUILD_NEEDED=true" >> $GITHUB_OUTPUT
-            echo "New version detected. Build needed."
+            if [ "${{ github.event.inputs.force_build }}" == "true" ]; then
+              echo "Force build enabled. Build needed."
+            else
+              echo "New version detected. Build needed."
+            fi
           else
             echo "BUILD_NEEDED=false" >> $GITHUB_OUTPUT
-            echo "No new version. Skipping build."
+            echo "No new version and force build is disabled. Skipping build."
           fi
 
       - name: Set BUILD_NEEDED for dev build
