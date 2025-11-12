@@ -7,7 +7,6 @@ A simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a s
 ## Notes:
 
 - `Release` is effectively identical to umagistr's image, `Dev` targets the TLS PR.
-- `arm/v7` support disabled since version 3.0.0 till 5rahim finds workaround (from umag's repo)
 
 ## Table of Contents
 
