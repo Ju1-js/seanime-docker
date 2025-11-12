@@ -4,9 +4,7 @@
 
 A simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a self-hosted anime streaming platform. Video transcoding via [FFmpeg](https://ffmpeg.org/) is included and works out of the box.
 
-## Notes:
-
-- `Release` is effectively identical to umagistr's image, `Dev` targets the TLS PR.
+*`Release` is effectively identical to umagistr's image, `Dev` targets the TLS PR.*
 
 ## Table of Contents
 
@@ -28,7 +26,7 @@ This Docker image is built with multi-architecture support and should be compati
 
 - **`linux/amd64`** - For standard x86-64 PCs and servers.
 - **`linux/arm64`** - For 64-bit ARM devices like the Raspberry Pi 4 and 5.
-- **New versions disabled:** **`linux/arm/v7`** - For older 32-bit ARM devices.
+- **`linux/arm/v7`** - For older 32-bit ARM devices.
 
 **Note:** While the image is built for all the above platforms, it is primarily tested and used on a Raspberry Pi 5 (`linux/arm64`). Feedback and issue reports for all platforms are highly encouraged and appreciated!
 
