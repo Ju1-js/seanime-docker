@@ -149,5 +149,12 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add .version
-          git commit -m "Update to seanime version ${{ steps.seanime_release.outputs.LATEST_RELEASE }}"
-          git push
+          
+          # Only commit if .version actually changed
+          if ! git diff --cached --quiet; then
+            git commit -m "Update to seanime version ${{ steps.seanime_release.outputs.LATEST_RELEASE }}"
+            git push
+            echo "Version file updated and pushed."
+          else
+            echo "Force build detected. The .version file was unchanged. Skipping commit."
+          fi
