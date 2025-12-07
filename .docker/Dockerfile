@@ -38,19 +38,16 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     <<EOT
     set -e
-    # Default flags
     export CGO_ENABLED=0
     export GOOS=$TARGETOS
     export GOARCH=$TARGETARCH
-    export FLAGS="-trimpath -ldflags='-s -w'"
 
     # Handle ARMv7 specific logic
     if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then
         export GOARM=7
     fi
 
-    # Build
-    go build -o seanime $FLAGS
+    go build -o seanime -trimpath -ldflags="-s -w"
 EOT
 
 # Final Image
