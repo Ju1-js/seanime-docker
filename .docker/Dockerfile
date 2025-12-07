@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.11
+# syntax=docker/dockerfile:1.4
 
 # Node.js Builder
 FROM --platform=$BUILDPLATFORM node:lts-slim AS node-builder
@@ -29,7 +29,7 @@ COPY --link go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
-COPY --link --exclude=seanime-web . ./
+COPY --link . ./
 
 # Copy build frontend assets
 COPY --from=node-builder --link /tmp/build/out /tmp/build/web
