@@ -102,6 +102,9 @@ jobs:
         shell: bash
 
       #  COMMON BUILD STEPS
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         if: (steps.check_build.outputs.BUILD_NEEDED == 'true' || steps.dev_build_check.outputs.BUILD_NEEDED == 'true')
         uses: docker/setup-buildx-action@v3

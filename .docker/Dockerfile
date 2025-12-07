@@ -54,7 +54,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 EOT
 
 # Final Image
-FROM --platform=$TARGETPLATFORM alpine:3.23.0
+FROM --platform=$TARGETPLATFORM alpine:3.22
 
 RUN apk add --no-cache ffmpeg ca-certificates
 
