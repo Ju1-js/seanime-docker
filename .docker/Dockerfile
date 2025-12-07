@@ -1,20 +1,20 @@
-# syntax=docker/dockerfile:1.4
+# syntax=docker/dockerfile:1.11
 
-# Stage 1: Node.js Builder
+# Node.js Builder
 FROM --platform=$BUILDPLATFORM node:lts-slim AS node-builder
 
 WORKDIR /tmp/build
 
-# Copy only package manifests and install dependencies first
-# This layer is cached and only re-runs if package.json or lock file changes
-COPY ./seanime-web/package.json ./seanime-web/package-lock.json* ./
-RUN npm install
+COPY --link ./seanime-web/package.json ./seanime-web/package-lock.json* ./
 
-# Copy rest of the web app source code and build
-COPY ./seanime-web .
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+COPY --link ./seanime-web ./
+
 RUN npm run build
 
-# Stage 2: Go Builder
+# Go Builder
 FROM --platform=$BUILDPLATFORM golang:alpine AS go-builder
 
 ARG TARGETOS
@@ -23,42 +23,46 @@ ARG TARGETVARIANT
 
 WORKDIR /tmp/build
 
-# Copy module files and download dependencies first
-# This layer is cached and only re-runs if go.mod or go.sum changes
-COPY go.mod go.sum ./
-RUN go mod download
+# Copy modules first
+COPY --link go.mod go.sum ./
 
-# Copy the rest of the application source
-COPY . .
-# Copy the built web app from the previous stage
-COPY --from=node-builder /tmp/build/out ./web
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
-# Build the Go application
-RUN if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then \
-    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=7 go build -o seanime -trimpath -ldflags="-s -w"; \
-    else \
-    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o seanime -trimpath -ldflags="-s -w"; \
+COPY --link --exclude=seanime-web . ./
+
+# Copy build frontend assets
+COPY --from=node-builder --link /tmp/build/out /tmp/build/web
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    <<EOT
+    set -e
+    # Default flags
+    export CGO_ENABLED=0
+    export GOOS=$TARGETOS
+    export GOARCH=$TARGETARCH
+    export FLAGS="-trimpath -ldflags='-s -w'"
+
+    # Handle ARMv7 specific logic
+    if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then
+        export GOARM=7
     fi
 
-# Stage 3: Final Stage
-FROM --platform=$TARGETPLATFORM alpine:latest
+    # Build
+    go build -o seanime $FLAGS
+EOT
 
-# Install necessary packages
-RUN apk add --no-cache \
-    ffmpeg ca-certificates
+# Final Image
+FROM --platform=$TARGETPLATFORM alpine:3.23.0
 
-# Fix missing certificate
-COPY Comodo_AAA_Services_root.crt /usr/local/share/ca-certificates/
+RUN apk add --no-cache ffmpeg ca-certificates
+
+COPY --link Comodo_AAA_Services_root.crt /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
-# Copy the Go-built application from the previous stage
-COPY --from=go-builder /tmp/build/seanime /app/
+COPY --from=go-builder --link /tmp/build/seanime /app/
 
-# Work in /app directory
 WORKDIR /app
-
-# Expose port 43211
 EXPOSE 43211
-
-# Command to run the application
 CMD ["/app/seanime"]
