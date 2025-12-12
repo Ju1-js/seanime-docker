@@ -65,6 +65,7 @@ services:
       - "tsbridge.service.funnel_enabled=true"
       - "tsbridge.service.ephemeral=true"
       - "tsbridge.service.backend_addr=http://gluetun:${SEANIME_UI_PORT}"
+      # - "tsbridge.service.insecure_skip_verify=true" # Enable if using self-signed certs and change backend_addr to https
       # Realtime events/streaming through proxy
       - "tsbridge.service.write_timeout=0s"
       - "tsbridge.service.flush_interval=-1ms"
