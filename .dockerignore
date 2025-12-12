@@ -1,10 +1,18 @@
 .git
 .github
 .gitignore
+.version
+.vscode
+.idea
 
-.docker
-Dockerfile
+examples
+scripts
+docs
+test
+
 docker-compose.yml
+Dockerfile
+README.md
 
 node_modules
 dist
@@ -16,3 +24,5 @@ obj
 
 config
 .env*
+
+src/.git
