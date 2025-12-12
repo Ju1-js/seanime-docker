@@ -1,0 +1,106 @@
+services:
+  tsbridge:
+    container_name: "tsbridge"
+    image: ghcr.io/jtdowney/tsbridge:latest
+    command: ["--provider", "docker"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - tsbridge-state:/var/lib/tsbridge
+    environment:
+      - TS_OAUTH_CLIENT_ID=${TS_OAUTH_CLIENT_ID}
+      - TS_OAUTH_CLIENT_SECRET=${TS_OAUTH_CLIENT_SECRET}
+    labels:
+      - "tsbridge.tailscale.oauth_client_id_env=TS_OAUTH_CLIENT_ID"
+      - "tsbridge.tailscale.oauth_client_secret_env=TS_OAUTH_CLIENT_SECRET"
+      - "tsbridge.tailscale.state_dir=/var/lib/tsbridge"
+      - "tsbridge.tailscale.default_tags=tag:server"
+    networks:
+      - tsbridge
+    restart: unless-stopped
+
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER}
+      - VPN_TYPE=${VPN_TYPE}
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
+      - SERVER_COUNTRIES=${SERVER_COUNTRIES}
+      - FIREWALL_INPUT_PORTS=${SEANIME_UI_PORT},${TRANSMISSION_WEB_PORT}
+    # Optional: Uncomment ports to allow Local LAN access (e.g. localhost:3000)
+    # ports:
+    #   - "${SEANIME_UI_PORT}:${SEANIME_UI_PORT}"
+    #   - "${TRANSMISSION_WEB_PORT}:9091"
+    networks:
+      - tsbridge
+    healthcheck:
+      test: ["CMD-SHELL", "ping -c 1 1.1.1.1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  seanime:
+    image: ju1js/seanime:latest
+    container_name: seanime
+    network_mode: "service:gluetun"
+    environment:
+      - SEANIME_SERVER_HOST=0.0.0.0
+      - SEANIME_SERVER_PORT=${SEANIME_UI_PORT}
+    volumes:
+      - ./config/seanime:/root/.config/Seanime
+      - ./data:/data
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    labels:
+      - "tsbridge.enabled=true"
+      - "tsbridge.service.name=seanime"
+      - "tsbridge.service.funnel_enabled=true"
+      - "tsbridge.service.ephemeral=true"
+      - "tsbridge.service.backend_addr=http://gluetun:${SEANIME_UI_PORT}"
+      # Realtime events/streaming through proxy
+      - "tsbridge.service.write_timeout=0s"
+      - "tsbridge.service.flush_interval=-1ms"
+      - "tsbridge.service.idle_conn_timeout=300s"
+    restart: unless-stopped
+
+  transmission:
+    image: lscr.io/linuxserver/transmission:latest
+    container_name: transmission
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - USER=${TRANSMISSION_USER}
+      - PASS=${TRANSMISSION_PASS}
+      - PEERPORT=${TRANSMISSION_PEER_PORT}
+    volumes:
+      - ./config/transmission:/config
+      - ./data/complete:/data/
+      - ./data/complete:/downloads/complete
+      - ./data/incomplete:/downloads/incomplete
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    labels:
+      - "tsbridge.enabled=true"
+      - "tsbridge.service.name=torrent"
+      - "tsbridge.service.funnel_enabled=false" # False for Tailnet-only access
+      - "tsbridge.service.ephemeral=true"
+      - "tsbridge.service.backend_addr=http://gluetun:9091"
+    restart: unless-stopped
+
+volumes:
+  tsbridge-state:
+
+networks:
+  tsbridge:
+    name: tsbridge
