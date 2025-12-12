@@ -1,0 +1,66 @@
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER}
+      - VPN_TYPE=${VPN_TYPE}
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
+      - SERVER_REGIONS=${SERVER_REGIONS}
+      - SERVER_COUNTRIES=${SERVER_COUNTRIES}
+      - SERVER_CITIES=${SERVER_CITIES}
+      - FIREWALL_INPUT_PORTS=${SEANIME_UI_PORT},${TRANSMISSION_WEB_PORT}
+      - TZ=${TZ}
+    ports:
+      - "${SEANIME_UI_PORT}:${SEANIME_UI_PORT}"
+      - "${TRANSMISSION_WEB_PORT}:9091"
+      - "${TRANSMISSION_PEER_PORT}:${TRANSMISSION_PEER_PORT}"
+      - "${TRANSMISSION_PEER_PORT}:${TRANSMISSION_PEER_PORT}/udp"
+    healthcheck:
+      test: ["CMD-SHELL", "ping -c 1 1.1.1.1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  seanime:
+    image: ju1js/seanime:latest
+    container_name: seanime
+    network_mode: "service:gluetun"
+    environment:
+      - SEANIME_SERVER_HOST=0.0.0.0
+      - SEANIME_SERVER_PORT=${SEANIME_UI_PORT}
+    volumes:
+      - ./config/seanime:/root/.config/Seanime
+      - ./data:/data
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    restart: unless-stopped
+
+  transmission:
+    image: lscr.io/linuxserver/transmission:latest
+    container_name: transmission
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - USER=${TRANSMISSION_USER}
+      - PASS=${TRANSMISSION_PASS}
+      - PEERPORT=${TRANSMISSION_PEER_PORT}
+    volumes:
+      - ./config/transmission:/config
+      - ./data/complete:/data/
+      - ./data/complete:/downloads/complete
+      - ./data/incomplete:/downloads/incomplete
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    restart: unless-stopped
