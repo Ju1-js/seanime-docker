@@ -89,15 +89,13 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.build_type }}" == "dev" ]; then
             echo "DEV BUILD: Cloning from ${{ github.event.inputs.repo }} at branch ${{ github.event.inputs.branch }}"
-            git clone https://github.com/${{ github.event.inputs.repo }}.git seanime_source
-            cd seanime_source
+            git clone https://github.com/${{ github.event.inputs.repo }}.git src
+            cd src
             git checkout ${{ github.event.inputs.branch }}
-            cd ..
-            mv seanime_source/* .
           else
             echo "RELEASE BUILD: Downloading source for ${{ steps.seanime_release.outputs.LATEST_RELEASE }}"
-            chmod +x ./.docker/prepare.sh
-            ./.docker/prepare.sh ${{ steps.seanime_release.outputs.LATEST_RELEASE }}
+            chmod +x ./scripts/prepare.sh
+            ./scripts/prepare.sh ${{ steps.seanime_release.outputs.LATEST_RELEASE }} src
           fi
         shell: bash
 
@@ -132,7 +130,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./.docker/Dockerfile
+          file: ./Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           tags: ${{ steps.meta.outputs.tags }}
@@ -149,7 +147,7 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add .version
-          
+
           # Only commit if .version actually changed
           if ! git diff --cached --quiet; then
             git commit -m "Update to seanime version ${{ steps.seanime_release.outputs.LATEST_RELEASE }}"
