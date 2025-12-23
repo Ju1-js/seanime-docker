@@ -20,6 +20,10 @@ on:
       branch:
         description: "Dev: Branch (e.g., feature/TLS)"
         required: false
+      cache_override:
+        description: "Override cache-from ('': default, 'NONE': no cache)"
+        required: false
+        type: string
   repository_dispatch:
     types: [seanime_release]
   schedule:
@@ -74,8 +78,13 @@ jobs:
         if: steps.target.outputs.BUILD_NEEDED == 'true'
         run: |
           if [ "${{ steps.target.outputs.BUILD_TYPE }}" == "dev" ]; then
-            git clone https://github.com/${{ github.event.inputs.repo }}.git src
-            cd src && git checkout ${{ github.event.inputs.branch }}
+            REPO="${{ github.event.inputs.repo }}"
+            BRANCH="${{ github.event.inputs.branch }}"
+            [ -z "$REPO" ] && REPO="5rahim/seanime"
+            [ -z "$BRANCH" ] && BRANCH="main"
+            echo "Cloning $REPO (branch: $BRANCH)..."
+            git clone https://github.com/${REPO}.git src
+            cd src && git checkout $BRANCH
           else
             chmod +x ./scripts/prepare.sh
             ./scripts/prepare.sh ${{ steps.target.outputs.LATEST_RELEASE }} src
@@ -97,16 +106,53 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Log in to GHCR
+        if: steps.target.outputs.BUILD_NEEDED == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract metadata
         if: steps.target.outputs.BUILD_NEEDED == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ju1js/seanime
+          images: |
+            ju1js/seanime
+            ghcr.io/ju1-js/seanime
           tags: |
             type=raw,value=${{ steps.target.outputs.LATEST_RELEASE }},enable=${{ steps.target.outputs.BUILD_TYPE == 'release' }}
             type=raw,value=latest,enable=${{ steps.target.outputs.BUILD_TYPE == 'release' }}
             type=raw,value=dev,enable=${{ steps.target.outputs.BUILD_TYPE == 'dev' }}
+
+      - name: Configure Cache
+        if: steps.target.outputs.BUILD_NEEDED == 'true'
+        id: cache_config
+        run: |
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          CACHE_IMAGE="ghcr.io/$OWNER_LC/seanime-cache"
+          echo "CACHE_IMAGE=$CACHE_IMAGE" >> $GITHUB_OUTPUT
+
+          OVERRIDE="${{ github.event.inputs.cache_override }}"
+
+          if [ -n "$OVERRIDE" ]; then
+            if [ "$OVERRIDE" == "NONE" ]; then
+               echo "Using NO cache (Manual Override)"
+               echo "CACHE_FROM=" >> $GITHUB_OUTPUT
+            else
+               echo "Using custom cache ref: $OVERRIDE"
+               echo "CACHE_FROM=type=registry,ref=$OVERRIDE" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "Using default cache waterfall"
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "CACHE_FROM<<$EOF" >> $GITHUB_OUTPUT
+            echo "type=registry,ref=$CACHE_IMAGE:${{ steps.target.outputs.BUILD_TYPE }}" >> $GITHUB_OUTPUT
+            echo "type=registry,ref=$CACHE_IMAGE:release" >> $GITHUB_OUTPUT
+            echo "$EOF" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build and push
         if: steps.target.outputs.BUILD_NEEDED == 'true'
@@ -120,10 +166,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SEANIME_VERSION=${{ steps.target.outputs.LATEST_RELEASE }}
-          cache-from: |
-            type=registry,ref=ju1js/seanime:buildcache-${{ steps.target.outputs.BUILD_TYPE }}
-            type=registry,ref=ju1js/seanime:buildcache
-          cache-to: type=registry,ref=ju1js/seanime:buildcache-${{ steps.target.outputs.BUILD_TYPE }},mode=max
+          cache-from: ${{ steps.cache_config.outputs.CACHE_FROM }}
+          cache-to: type=registry,ref=${{ steps.cache_config.outputs.CACHE_IMAGE }}:${{ steps.target.outputs.BUILD_TYPE }},mode=max
 
       - name: Update version file
         if: steps.target.outputs.BUILD_NEEDED == 'true' && steps.target.outputs.BUILD_TYPE == 'release'
