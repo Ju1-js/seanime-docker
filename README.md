@@ -1,6 +1,7 @@
 # Seanime Docker
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/ju1js/seanime.svg)](https://hub.docker.com/r/ju1js/seanime)
+[![Publish Docker image](https://github.com/Ju1-js/seanime-docker/actions/workflows/publish.yml/badge.svg)](https://github.com/Ju1-js/seanime-docker/actions/workflows/publish.yml)
 
 A simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a self-hosted anime streaming platform. Video transcoding via [FFmpeg](https://ffmpeg.org/) is included and works out of the box.
 
