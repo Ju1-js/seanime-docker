@@ -114,7 +114,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: Extract metadata (Slim)
         if: steps.target.outputs.BUILD_NEEDED == 'true'
         id: meta
         uses: docker/metadata-action@v5
@@ -154,12 +154,13 @@ jobs:
             echo "$EOF" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push
+      - name: Build and push (Slim)
         if: steps.target.outputs.BUILD_NEEDED == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
+          target: slim
           push: true
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           tags: ${{ steps.meta.outputs.tags }}
@@ -168,6 +169,37 @@ jobs:
             SEANIME_VERSION=${{ steps.target.outputs.LATEST_RELEASE }}
           cache-from: ${{ steps.cache_config.outputs.CACHE_FROM }}
           cache-to: type=registry,ref=${{ steps.cache_config.outputs.CACHE_IMAGE }}:${{ steps.target.outputs.BUILD_TYPE }},mode=max
+
+      - name: Extract metadata (HW Accel)
+        if: steps.target.outputs.BUILD_NEEDED == 'true'
+        id: meta_hwaccel
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ju1js/seanime
+            ghcr.io/ju1-js/seanime
+          flavor: |
+            latest=auto
+            suffix=-hwaccel,onlatest=true
+          tags: |
+            type=raw,value=${{ steps.target.outputs.LATEST_RELEASE }},enable=${{ steps.target.outputs.BUILD_TYPE == 'release' }}
+            type=raw,value=latest,enable=${{ steps.target.outputs.BUILD_TYPE == 'release' }}
+            type=raw,value=dev,enable=${{ steps.target.outputs.BUILD_TYPE == 'dev' }}
+
+      - name: Build and push (HW Accel)
+        if: steps.target.outputs.BUILD_NEEDED == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: hwaccel
+          push: true
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          tags: ${{ steps.meta_hwaccel.outputs.tags }}
+          labels: ${{ steps.meta_hwaccel.outputs.labels }}
+          build-args: |
+            SEANIME_VERSION=${{ steps.target.outputs.LATEST_RELEASE }}
+          cache-from: type=registry,ref=${{ steps.cache_config.outputs.CACHE_IMAGE }}:${{ steps.target.outputs.BUILD_TYPE }}
 
       - name: Update version file
         if: steps.target.outputs.BUILD_NEEDED == 'true' && steps.target.outputs.BUILD_TYPE == 'release'
