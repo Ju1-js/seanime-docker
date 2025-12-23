@@ -134,5 +134,6 @@ jobs:
           git add .version
           if ! git diff --cached --quiet; then
             git commit -m "Update to seanime version ${{ steps.target.outputs.LATEST_RELEASE }}"
+            git pull --rebase origin main
             git push
           fi
