@@ -1,5 +1,13 @@
 name: Publish Docker image
 
+run-name: >-
+  ${{ 
+    github.event_name == 'repository_dispatch' && 'New Release Detected (RSS)' || 
+    github.event_name == 'schedule' && 'Daily Update Check' || 
+    github.event_name == 'workflow_dispatch' && format('Manual Build ({0})', inputs.build_type) || 
+    'Publish Docker Image' 
+  }}
+
 on:
   workflow_dispatch:
     inputs:
