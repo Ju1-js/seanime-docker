@@ -4,32 +4,34 @@ on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: "Type of build to run"
+        description: "Type of build"
         required: true
         type: choice
-        options:
-          - release
-          - dev
+        options: [release, dev]
         default: "dev"
       force_build:
-        description: "For release build: Force a build even if versions match"
+        description: "Force release build"
         required: true
         type: boolean
         default: false
       repo:
-        description: "For dev build: Repo to build from (e.g., Ju1-js/seanime)"
+        description: "Dev: Repo (e.g., Ju1-js/seanime)"
         required: false
       branch:
-        description: "For dev build: Branch to build (e.g., feature/TLS)"
+        description: "Dev: Branch (e.g., feature/TLS)"
         required: false
   repository_dispatch:
     types: [seanime_release]
   schedule:
     - cron: "0 */12 * * *"
 
+concurrency:
+  group: build-seanime
+  cancel-in-progress: true
+
 jobs:
   check_and_build:
-    name: Build and Push Docker Image
+    name: Build and Push
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -37,96 +39,77 @@ jobs:
       id-token: write
 
     steps:
-      - name: Check out the repo
+      - name: Check out
         uses: actions/checkout@v4
 
-      #  RELEASE BUILD
-      - name: Get latest release of 5rahim/seanime
-        if: github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch'
-        id: seanime_release
+      - name: Determine Target Version
+        id: target
         run: |
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/5rahim/seanime/releases/latest | jq -r .tag_name)
-          echo "LATEST_RELEASE=${LATEST_RELEASE}" >> $GITHUB_OUTPUT
-          echo "Latest 5rahim/seanime release: ${LATEST_RELEASE}"
+          # Default to inputs or detect event
+          TYPE="${{ github.event.inputs.build_type }}"
+          [ -z "$TYPE" ] && TYPE="release" # Default for cron/dispatch
 
-      - name: Check if build is needed
-        if: github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch'
-        id: check_build
-        run: |
-          CURRENT_VERSION=$(cat .version 2>/dev/null || echo "none")
-          if [ "${{ steps.seanime_release.outputs.LATEST_RELEASE }}" != "${CURRENT_VERSION}" ] || [ "${{ github.event.inputs.force_build }}" == "true" ]; then
+          if [ "$TYPE" == "dev" ]; then
+            echo "BUILD_TYPE=dev" >> $GITHUB_OUTPUT
             echo "BUILD_NEEDED=true" >> $GITHUB_OUTPUT
-            if [ "${{ github.event.inputs.force_build }}" == "true" ]; then
-              echo "Force build enabled. Build needed."
+          else
+            # Fetch upstream version only for release builds
+            UPSTREAM=$(curl -s https://api.github.com/repos/5rahim/seanime/releases/latest | jq -r .tag_name)
+            CURRENT=$(cat .version 2>/dev/null || echo "none")
+            FORCE="${{ github.event.inputs.force_build }}"
+            
+            echo "LATEST_RELEASE=$UPSTREAM" >> $GITHUB_OUTPUT
+            echo "BUILD_TYPE=release" >> $GITHUB_OUTPUT
+            
+            if [ "$UPSTREAM" != "$CURRENT" ] || [ "$FORCE" == "true" ]; then
+              echo "BUILD_NEEDED=true" >> $GITHUB_OUTPUT
+              echo "Status: New version ($UPSTREAM) or Forced. Building."
             else
-              echo "New version detected. Build needed."
+              echo "BUILD_NEEDED=false" >> $GITHUB_OUTPUT
+              echo "Status: Up to date ($CURRENT). Skipping."
             fi
-          else
-            echo "BUILD_NEEDED=false" >> $GITHUB_OUTPUT
-            echo "No new version and force build is disabled. Skipping build."
           fi
 
-      - name: Set BUILD_NEEDED for dev build
-        if: github.event.inputs.build_type == 'dev'
-        id: dev_build_check
-        run: echo "BUILD_NEEDED=true" >> $GITHUB_OUTPUT
-
-      # Free up disk space if a build is going to happen
-      - uses: jlumbroso/free-disk-space@main
-        if: (steps.check_build.outputs.BUILD_NEEDED == 'true' || steps.dev_build_check.outputs.BUILD_NEEDED == 'true')
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: false
-          docker-images: false
-          swap-storage: true
-
-      #  PREPARE SOURCE
-      - name: Prepare Repository
-        if: (steps.check_build.outputs.BUILD_NEEDED == 'true' || steps.dev_build_check.outputs.BUILD_NEEDED == 'true')
+      - name: Prepare Source
+        if: steps.target.outputs.BUILD_NEEDED == 'true'
         run: |
-          if [ "${{ github.event.inputs.build_type }}" == "dev" ]; then
-            echo "DEV BUILD: Cloning from ${{ github.event.inputs.repo }} at branch ${{ github.event.inputs.branch }}"
+          if [ "${{ steps.target.outputs.BUILD_TYPE }}" == "dev" ]; then
             git clone https://github.com/${{ github.event.inputs.repo }}.git src
-            cd src
-            git checkout ${{ github.event.inputs.branch }}
+            cd src && git checkout ${{ github.event.inputs.branch }}
           else
-            echo "RELEASE BUILD: Downloading source for ${{ steps.seanime_release.outputs.LATEST_RELEASE }}"
             chmod +x ./scripts/prepare.sh
-            ./scripts/prepare.sh ${{ steps.seanime_release.outputs.LATEST_RELEASE }} src
+            ./scripts/prepare.sh ${{ steps.target.outputs.LATEST_RELEASE }} src
           fi
-        shell: bash
 
-      #  COMMON BUILD STEPS
+      # Build setup
       - name: Set up QEMU
+        if: steps.target.outputs.BUILD_NEEDED == 'true'
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        if: (steps.check_build.outputs.BUILD_NEEDED == 'true' || steps.dev_build_check.outputs.BUILD_NEEDED == 'true')
+        if: steps.target.outputs.BUILD_NEEDED == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        if: (steps.check_build.outputs.BUILD_NEEDED == 'true' || steps.dev_build_check.outputs.BUILD_NEEDED == 'true')
+        if: steps.target.outputs.BUILD_NEEDED == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Extract metadata for Docker
-        if: (steps.check_build.outputs.BUILD_NEEDED == 'true' || steps.dev_build_check.outputs.BUILD_NEEDED == 'true')
+      - name: Extract metadata
+        if: steps.target.outputs.BUILD_NEEDED == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ju1js/seanime
           tags: |
-            type=raw,value=${{ steps.seanime_release.outputs.LATEST_RELEASE }},enable=${{ (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch') }}
-            type=raw,value=latest,enable=${{ (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch') }}
-            type=raw,value=dev,enable=${{ github.event.inputs.build_type == 'dev' }}
+            type=raw,value=${{ steps.target.outputs.LATEST_RELEASE }},enable=${{ steps.target.outputs.BUILD_TYPE == 'release' }}
+            type=raw,value=latest,enable=${{ steps.target.outputs.BUILD_TYPE == 'release' }}
+            type=raw,value=dev,enable=${{ steps.target.outputs.BUILD_TYPE == 'dev' }}
 
-      - name: Build and push Docker image
-        if: (steps.check_build.outputs.BUILD_NEEDED == 'true' || steps.dev_build_check.outputs.BUILD_NEEDED == 'true')
+      - name: Build and push
+        if: steps.target.outputs.BUILD_NEEDED == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -136,23 +119,20 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            SEANIME_VERSION=${{ steps.seanime_release.outputs.LATEST_RELEASE }}
-          cache-from: type=registry,ref=ju1js/seanime:buildcache
-          cache-to: type=registry,ref=ju1js/seanime:buildcache,mode=max
+            SEANIME_VERSION=${{ steps.target.outputs.LATEST_RELEASE }}
+          cache-from: |
+            type=registry,ref=ju1js/seanime:buildcache-${{ steps.target.outputs.BUILD_TYPE }}
+            type=registry,ref=ju1js/seanime:buildcache
+          cache-to: type=registry,ref=ju1js/seanime:buildcache-${{ steps.target.outputs.BUILD_TYPE }},mode=max
 
       - name: Update version file
-        if: steps.check_build.outputs.BUILD_NEEDED == 'true' && (github.event.inputs.build_type == 'release' || github.event_name != 'workflow_dispatch')
+        if: steps.target.outputs.BUILD_NEEDED == 'true' && steps.target.outputs.BUILD_TYPE == 'release'
         run: |
-          echo "${{ steps.seanime_release.outputs.LATEST_RELEASE }}" > .version
+          echo "${{ steps.target.outputs.LATEST_RELEASE }}" > .version
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add .version
-
-          # Only commit if .version actually changed
           if ! git diff --cached --quiet; then
-            git commit -m "Update to seanime version ${{ steps.seanime_release.outputs.LATEST_RELEASE }}"
+            git commit -m "Update to seanime version ${{ steps.target.outputs.LATEST_RELEASE }}"
             git push
-            echo "Version file updated and pushed."
-          else
-            echo "Force build detected. The .version file was unchanged. Skipping commit."
           fi

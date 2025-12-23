@@ -5,13 +5,13 @@ FROM --platform=$BUILDPLATFORM node:lts-slim AS node-builder
 
 WORKDIR /tmp/build
 
-# Point to the src folder for package files
+# Only copy package files
 COPY --link src/seanime-web/package.json src/seanime-web/package-lock.json* ./
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-# Copy the web source from src
+# Copy the source after deps to keep cache valid
 COPY --link src/seanime-web ./
 
 RUN npm run build
@@ -25,32 +25,29 @@ ARG TARGETVARIANT
 
 WORKDIR /tmp/build
 
-# Copy go modules from src
 COPY --link src/go.mod src/go.sum ./
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
-# Copy the rest of the source code from src
+# Copy the source code
 COPY --link src/ .
 
 # Copy built frontend assets
 COPY --from=node-builder --link /tmp/build/out /tmp/build/web
 
+# Persist the Go build cache between runs
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    <<EOT
-    set -e
-    export CGO_ENABLED=0
-    export GOOS=$TARGETOS
-    export GOARCH=$TARGETARCH
-
-    if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then
-        export GOARM=7
-    fi
-
-    go build -o seanime -trimpath -ldflags="-s -w"
-EOT
+    set -e && \
+    export CGO_ENABLED=0 && \
+    export GOOS=$TARGETOS && \
+    export GOARCH=$TARGETARCH && \
+    if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then \
+    export GOARM=7; \
+    fi && \
+    echo "Building for $TARGETOS/$TARGETARCH (variant: $TARGETVARIANT)..." && \
+    go build -tags timetzdata -o seanime -trimpath -ldflags="-s -w"
 
 # Final Image
 FROM --platform=$TARGETPLATFORM alpine:3.22
