@@ -18,7 +18,7 @@ mkdir -p "$TARGET_DIR"
 echo "Downloading source for tag ${RELEASE_TAG} into ${TARGET_DIR}..."
 
 # Download and extract into the target directory
-curl -Ls "https://github.com/5rahim/seanime/archive/refs/tags/${RELEASE_TAG}.tar.gz" \
+curl -fLs "https://github.com/5rahim/seanime/archive/refs/tags/${RELEASE_TAG}.tar.gz" \
   | tar -xz --strip-components=1 -C "$TARGET_DIR"
 
 echo "Source code prepared in ${TARGET_DIR}."
