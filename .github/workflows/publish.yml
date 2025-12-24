@@ -212,6 +212,8 @@ jobs:
       - name: Update version file
         if: steps.target.outputs.BUILD_NEEDED == 'true' && steps.target.outputs.BUILD_TYPE == 'release'
         run: |
+          git reset --hard
+          git clean -fd
           echo "${{ steps.target.outputs.LATEST_RELEASE }}" > .version
           git config user.name github-actions
           git config user.email github-actions@github.com
