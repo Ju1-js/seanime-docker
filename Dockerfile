@@ -51,8 +51,6 @@ RUN apk update && \
     adduser -S seanime -G seanime -u 1000
 
 WORKDIR /app
-COPY --link assets/Comodo_AAA_Services_root.crt /usr/local/share/ca-certificates/
-RUN update-ca-certificates
 COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
 
 EXPOSE 43211
