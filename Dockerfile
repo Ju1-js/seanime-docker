@@ -48,18 +48,18 @@ RUN apk update && \
 WORKDIR /app
 COPY --link assets/Comodo_AAA_Services_root.crt /usr/local/share/ca-certificates/
 RUN update-ca-certificates
-COPY --from=go-builder --link --chown=appuser:appgroup /tmp/build/seanime /app/
+COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
 
 EXPOSE 43211
 
-USER appuser
+USER 1000
 CMD ["/app/seanime"]
 
 # Slim
 FROM base AS slim
 USER root
 RUN apk add --no-cache ffmpeg
-USER appuser
+USER 1000
 
 # Hwaccel
 FROM base AS hwaccel
@@ -79,4 +79,4 @@ RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
 RUN addgroup appuser video || true && \
     addgroup appuser render || true
 
-USER appuser
+USER 1000
