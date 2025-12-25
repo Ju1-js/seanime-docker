@@ -7,6 +7,18 @@ A simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a s
 
 Now available in **Standard** and **Hardware Accelerated** variants.
 
+## **Breaking Changes (v3.2.3)**
+
+**The internal container user has changed.**
+To improve security, this image now runs as a non-root user named `seanime` (UID: `1000`, GID: `1000`).
+
+1.  **Update Volume Paths:** You need to change your volume mapping for the config directory.
+    - **Old:** `/root/.config/Seanime`
+    - **New:** `/home/seanime/.config/Seanime`
+2.  **Check Permissions:** Ensure the directories you mount on your host (config and data) are readable and writable by **UID 1000**.
+
+---
+
 ## Table of Contents
 
 - [Image Variants](#image-variants)
@@ -22,10 +34,10 @@ Now available in **Standard** and **Hardware Accelerated** variants.
 
 ## Image Variants
 
-| Tag          | Suffix            | Description                                                                | Best For                                                                    |
-| :----------- | :---------------- | :------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
-| **Standard** | `:latest`         | Alpine Linux + Standard FFmpeg.                                            | Raspberry Pi, ARM devices, or users who Direct Play media (no transcoding). |
-| **HW Accel** | `:latest-hwaccel` | Includes **Jellyfin-FFmpeg**, Intel Media Drivers (QSV/VAAPI), and OpenCL. | **Intel CPUs** (iGPU) requiring hardware transcoding.                       |
+| Tag          | Suffix            | Description                                                   | Best For                                                                    |
+| :----------- | :---------------- | :------------------------------------------------------------ | :-------------------------------------------------------------------------- |
+| **Standard** | `:latest`         | Alpine Linux + Jellyfin-FFmpeg.                               | Raspberry Pi, ARM devices, or users who Direct Play media (no transcoding). |
+| **HW Accel** | `:latest-hwaccel` | Jellyfin-FFmpeg, Intel Media Drivers (QSV/VAAPI), and OpenCL. | **Intel CPUs** (iGPU) requiring hardware transcoding.                       |
 
 ## Platform Support
 
@@ -35,7 +47,7 @@ This Docker image is built with multi-architecture support and should be compati
 - **`linux/arm64`** - 64-bit ARM devices (Raspberry Pi 4/5).
 - **`linux/arm/v7`** - Older 32-bit ARM devices.
 
-**Note:** The Intel drivers included in the `-hwaccel` image are only active on `amd64` platforms. The image will still run on ARM devices, but will fall back to software transcoding. The `-hwaccel` images are recent additions (and therefore their reliability cannot be guaranteed).
+**Note:** The Intel drivers included in the `-hwaccel` image are only active on `amd64` platforms. The image will still run on ARM devices, but will fall back to software transcoding.
 
 ## Usage
 
@@ -46,7 +58,9 @@ To quickly get started with the **Standard** image:
 ```bash
 docker run -d \
   -p 43211:43211 \
-  -v ./seanime-config:/root/.config/Seanime \
+  -e SEANIME_SERVER_HOST=0.0.0.0 \
+  -e SEANIME_SERVER_PORT=43211 \
+  -v ./config/seanime:/home/seanime/.config/Seanime \
   --restart=unless-stopped \
   --name seanime \
   ju1js/seanime:latest
@@ -57,7 +71,9 @@ To run with **Hardware Acceleration** (Intel iGPU):
 ```bash
 docker run -d \
   -p 43211:43211 \
-  -v ./seanime-config:/root/.config/Seanime \
+  -e SEANIME_SERVER_HOST=0.0.0.0 \
+  -e SEANIME_SERVER_PORT=43211 \
+  -v ./config/seanime:/home/seanime/.config/Seanime \
   --device /dev/dri:/dev/dri \
   --restart=unless-stopped \
   --name seanime \
@@ -73,10 +89,13 @@ services:
   seanime:
     image: ju1js/seanime:latest
     container_name: seanime
+    environment:
+      - SEANIME_SERVER_HOST=0.0.0.0
+      - SEANIME_SERVER_PORT=43211
     ports:
       - "43211:43211"
     volumes:
-      - ./config:/root/.config/Seanime
+      - ./config/seanime:/home/seanime/.config/Seanime
       - ./data:/data # Optional: Mount a directory for your media
     restart: unless-stopped
 ```
@@ -94,10 +113,13 @@ services:
     container_name: seanime
     devices:
       - /dev/dri:/dev/dri # <--- Pass the GPU device
+    environment:
+      - SEANIME_SERVER_HOST=0.0.0.0
+      - SEANIME_SERVER_PORT=43211
     ports:
       - "43211:43211"
     volumes:
-      - ./config:/root/.config/Seanime
+      - ./config/seanime:/home/seanime/.config/Seanime
       - ./data:/data
     restart: unless-stopped
 ```
@@ -118,8 +140,10 @@ For complex setups, such as running Seanime behind a VPN or using Tailscale, ple
 
 ### Volumes
 
-- **`/root/.config/Seanime`**: Stores the configuration files for Seanime.
+- **`/home/seanime/.config/Seanime`**: Stores the configuration files for Seanime.
 - **`/data`**: A common directory for storing your media files. Recommended for organization.
+
+> **Permissions Note:** The container runs as user `1000`. Ensure your host directories mapped to these volumes are accessible by UID `1000`.
 
 ### Environment Variables
 
@@ -128,7 +152,7 @@ For complex setups, such as running Seanime behind a VPN or using Tailscale, ple
 
 ## Contributing
 
-Contributions are welcome\! If you have any suggestions, bug reports, or feature requests, please open an issue or submit a pull request on the [GitHub repository](https://github.com/Ju1-js/seanime-docker).
+Contributions are welcome! If you have any suggestions, bug reports, or feature requests, please open an issue or submit a pull request on the [GitHub repository](https://github.com/Ju1-js/seanime-docker).
 
 ## License
 

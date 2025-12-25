@@ -47,8 +47,8 @@ FROM --platform=$TARGETPLATFORM alpine:3.22 AS base
 RUN apk update && \
     apk upgrade --no-cache && \
     apk add --no-cache ca-certificates tzdata && \
-    addgroup -S appgroup -g 1000 && \
-    adduser -S appuser -G appgroup -u 1000
+    addgroup -S seanime -g 1000 && \
+    adduser -S seanime -G seanime -u 1000
 
 WORKDIR /app
 COPY --link assets/Comodo_AAA_Services_root.crt /usr/local/share/ca-certificates/
@@ -85,7 +85,7 @@ RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
     ln -s /usr/bin/jellyfin-ffmpeg /usr/bin/ffmpeg && \
     ln -s /usr/bin/jellyfin-ffprobe /usr/bin/ffprobe
 
-RUN addgroup appuser video || true && \
-    addgroup appuser render || true
+RUN addgroup seanime video || true && \
+    addgroup seanime render || true
 
 USER 1000

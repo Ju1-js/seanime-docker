@@ -37,7 +37,7 @@ services:
       - SEANIME_SERVER_HOST=0.0.0.0
       - SEANIME_SERVER_PORT=${SEANIME_UI_PORT}
     volumes:
-      - ./config/seanime:/root/.config/Seanime
+      - ./config/seanime:/home/seanime/.config/Seanime
       - ./data:/data
     depends_on:
       gluetun:

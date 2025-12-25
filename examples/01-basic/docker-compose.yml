@@ -4,9 +4,10 @@ services:
     container_name: seanime
     environment:
       - SEANIME_SERVER_HOST=0.0.0.0
+      - SEANIME_SERVER_PORT=43211
     ports:
       - "43211:43211"
     volumes:
-      - ./config:/root/.config/Seanime
+      - ./config/seanime:/home/seanime/.config/Seanime
       - ./data:/data
     restart: unless-stopped
