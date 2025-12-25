@@ -42,7 +42,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -tags timetzdata -o seanime -trimpath -ldflags="-s -w"
 
 # Base Image
-FROM --platform=$TARGETPLATFORM alpine:3.22 AS base
+FROM --platform=$TARGETPLATFORM alpine:3.23.2 AS base
 
 RUN apk update && \
     apk upgrade --no-cache && \
