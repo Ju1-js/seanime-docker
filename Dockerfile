@@ -18,8 +18,11 @@ COPY --link src/go.mod src/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY --link src/ .
 
-# Fixes: CVE-2025-5953, CVE-2025-4914
-RUN go get github.com/quic-go/quic-go@v0.54.1 && \
+# Fixes:
+# CVE-2025-5953, CVE-2025-4914, CVE-2025-64702
+# GHSA-2464-8j7c-4cjm, GHSA-fv92-fjc5-jj9h
+RUN go get github.com/quic-go/quic-go@v0.57.0 && \
+    go get github.com/go-viper/mapstructure/v2@v2.4.0 && \
     go get github.com/pion/interceptor@v0.1.39 && \
     go mod tidy
 
