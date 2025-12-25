@@ -56,6 +56,8 @@ jobs:
 
       - name: Determine Target Version
         id: target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Default to inputs or detect event
           TYPE="${{ github.event.inputs.build_type }}"
@@ -66,7 +68,7 @@ jobs:
             echo "BUILD_NEEDED=true" >> $GITHUB_OUTPUT
           else
             # Fetch upstream version only for release builds
-            UPSTREAM=$(curl -s https://api.github.com/repos/5rahim/seanime/releases/latest | jq -r .tag_name)
+            UPSTREAM=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/5rahim/seanime/releases/latest | jq -r .tag_name)
             CURRENT=$(cat .version 2>/dev/null || echo "none")
             FORCE="${{ github.event.inputs.force_build }}"
             
