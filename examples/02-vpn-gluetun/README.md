@@ -8,6 +8,7 @@ This setup runs Seanime and Transmission behind a VPN using [Gluetun](https://gi
 Seanime runs as UID `1000`. Ensure your config and data directories on the host are owned by UID `1000` before starting.
 
 ```bash
+mkdir ./config/ ./data/
 sudo chown -R 1000:1000 ./config/seanime ./data
 ```
 

@@ -17,6 +17,7 @@ This allows you to access your Seanime instance remotely without port forwarding
 Seanime runs as UID `1000`. Ensure your config and data directories on the host are owned by UID `1000` before starting.
 
 ```bash
+mkdir ./config/ ./data/
 sudo chown -R 1000:1000 ./config/seanime ./data
 ```
 
