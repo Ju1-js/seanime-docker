@@ -1,11 +1,11 @@
 name: Publish Docker image
 
 run-name: >-
-  ${{ 
-    github.event_name == 'repository_dispatch' && 'New Release Detected (RSS)' || 
-    github.event_name == 'schedule' && 'Daily Update Check' || 
-    github.event_name == 'workflow_dispatch' && format('Manual Build ({0})', inputs.build_type) || 
-    'Publish Docker Image' 
+  ${{
+    github.event_name == 'repository_dispatch' && 'New Release Detected (RSS)' ||
+    github.event_name == 'schedule' && 'Daily Update Check' ||
+    github.event_name == 'workflow_dispatch' && format('Manual Build ({0})', inputs.build_type) ||
+    'Publish Docker Image'
   }}
 
 on:
@@ -59,22 +59,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Default to inputs or detect event
           TYPE="${{ github.event.inputs.build_type }}"
-          [ -z "$TYPE" ] && TYPE="release" # Default for cron/dispatch
+          [ -z "$TYPE" ] && TYPE="release"
 
           if [ "$TYPE" == "dev" ]; then
             echo "BUILD_TYPE=dev" >> $GITHUB_OUTPUT
             echo "BUILD_NEEDED=true" >> $GITHUB_OUTPUT
           else
-            # Fetch upstream version only for release builds
             UPSTREAM=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/5rahim/seanime/releases/latest | jq -r .tag_name)
+            if [ "$UPSTREAM" == "null" ] || [ -z "$UPSTREAM" ]; then
+              echo "Error: Failed to fetch upstream version. API returned null or empty."
+              exit 1
+            fi
+
             CURRENT=$(cat .version 2>/dev/null || echo "none")
             FORCE="${{ github.event.inputs.force_build }}"
-            
+
             echo "LATEST_RELEASE=$UPSTREAM" >> $GITHUB_OUTPUT
             echo "BUILD_TYPE=release" >> $GITHUB_OUTPUT
-            
+
             if [ "$UPSTREAM" != "$CURRENT" ] || [ "$FORCE" == "true" ]; then
               echo "BUILD_NEEDED=true" >> $GITHUB_OUTPUT
               echo "Status: New version ($UPSTREAM) or Forced. Building."
@@ -100,7 +103,6 @@ jobs:
             ./scripts/prepare.sh ${{ steps.target.outputs.LATEST_RELEASE }} src
           fi
 
-      # Build setup
       - name: Set up QEMU
         if: steps.target.outputs.BUILD_NEEDED == 'true'
         uses: docker/setup-qemu-action@v3
