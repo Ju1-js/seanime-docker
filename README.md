@@ -128,7 +128,3 @@ For complex setups, such as running Seanime behind a VPN or using Tailscale, ple
 ## Contributing
 
 Contributions are welcome\! If you have any suggestions, bug reports, or feature requests, please open an issue or submit a pull request on the [GitHub repository](https://github.com/Ju1-js/seanime-docker).
-
-```
-
-```
