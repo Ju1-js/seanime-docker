@@ -21,8 +21,10 @@ COPY --link src/ .
 # Fixes:
 # CVE-2025-5953, CVE-2025-4914, CVE-2025-64702
 # GHSA-2464-8j7c-4cjm, GHSA-fv92-fjc5-jj9h
-RUN go get github.com/quic-go/quic-go@v0.57.0 && \
+# Note: We update 'req' to v3.57.0+ to support quic-go v0.57+
+RUN go get github.com/quic-go/quic-go@v0.57.1 && \
     go get github.com/go-viper/mapstructure/v2@v2.4.0 && \
+    go get github.com/imroc/req/v3@v3.57.0 && \
     go get github.com/pion/interceptor@v0.1.39 && \
     go mod tidy
 
