@@ -17,6 +17,12 @@ WORKDIR /tmp/build
 COPY --link src/go.mod src/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY --link src/ .
+
+# Fixes: CVE-2025-5953 & CVE-2025-4914
+RUN go get github.com/quic-go/quic-go@v0.54.1 && \
+    go get github.com/pion/interceptor@v0.1.39 && \
+    go mod tidy
+
 COPY --from=node-builder --link /tmp/build/out /tmp/build/web
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
@@ -32,22 +38,34 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 # Base Image
 FROM --platform=$TARGETPLATFORM alpine:3.22 AS base
+
+RUN apk update && \
+    apk upgrade --no-cache && \
+    apk add --no-cache ca-certificates tzdata && \
+    addgroup -S appgroup -g 1000 && \
+    adduser -S appuser -G appgroup -u 1000
+
 WORKDIR /app
-RUN apk add --no-cache ca-certificates
 COPY --link assets/Comodo_AAA_Services_root.crt /usr/local/share/ca-certificates/
 RUN update-ca-certificates
-COPY --from=go-builder --link /tmp/build/seanime /app/
+COPY --from=go-builder --link --chown=appuser:appgroup /tmp/build/seanime /app/
+
 EXPOSE 43211
+
+USER appuser
 CMD ["/app/seanime"]
 
 # Slim
 FROM base AS slim
+USER root
 RUN apk add --no-cache ffmpeg
+USER appuser
 
 # Hwaccel
 FROM base AS hwaccel
 ARG TARGETARCH
 
+USER root
 RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
     apk update && \
     PACKAGES="jellyfin-ffmpeg mesa-va-gallium opencl-icd-loader" && \
@@ -57,3 +75,8 @@ RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
     apk add --no-cache $PACKAGES && \
     ln -s /usr/bin/jellyfin-ffmpeg /usr/bin/ffmpeg && \
     ln -s /usr/bin/jellyfin-ffprobe /usr/bin/ffprobe
+
+RUN addgroup appuser video || true && \
+    addgroup appuser render || true
+
+USER appuser
