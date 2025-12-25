@@ -18,7 +18,7 @@ COPY --link src/go.mod src/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY --link src/ .
 
-# Fixes: CVE-2025-5953 & CVE-2025-4914
+# Fixes: CVE-2025-5953, CVE-2025-4914
 RUN go get github.com/quic-go/quic-go@v0.54.1 && \
     go get github.com/pion/interceptor@v0.1.39 && \
     go mod tidy
@@ -55,19 +55,23 @@ EXPOSE 43211
 USER 1000
 CMD ["/app/seanime"]
 
-# Slim
 FROM base AS slim
 USER root
-RUN apk add --no-cache ffmpeg
+RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
+    apk update && \
+    apk add --no-cache jellyfin-ffmpeg --repository=https://repo.jellyfin.org/releases/alpine/ && \
+    ln -s /usr/bin/jellyfin-ffmpeg /usr/bin/ffmpeg && \
+    ln -s /usr/bin/jellyfin-ffprobe /usr/bin/ffprobe
+
 USER 1000
 
-# Hwaccel
 FROM base AS hwaccel
 ARG TARGETARCH
 
 USER root
 RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
     apk update && \
+    apk upgrade --no-cache && \
     PACKAGES="jellyfin-ffmpeg mesa-va-gallium opencl-icd-loader" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
     PACKAGES="$PACKAGES intel-media-driver libva-intel-driver"; \
