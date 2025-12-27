@@ -63,8 +63,8 @@ USER root
 RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
     apk update && \
     apk add --no-cache jellyfin-ffmpeg --repository=https://repo.jellyfin.org/releases/alpine/ && \
-    ln -s /usr/bin/jellyfin-ffmpeg /usr/bin/ffmpeg && \
-    ln -s /usr/bin/jellyfin-ffprobe /usr/bin/ffprobe
+    ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg && \
+    ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe
 
 USER 1000
 
@@ -80,8 +80,8 @@ RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
     PACKAGES="$PACKAGES intel-media-driver libva-intel-driver"; \
     fi && \
     apk add --no-cache $PACKAGES && \
-    ln -s /usr/bin/jellyfin-ffmpeg /usr/bin/ffmpeg && \
-    ln -s /usr/bin/jellyfin-ffprobe /usr/bin/ffprobe
+    ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg && \
+    ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe
 
 RUN addgroup seanime video || true && \
     addgroup seanime render || true
