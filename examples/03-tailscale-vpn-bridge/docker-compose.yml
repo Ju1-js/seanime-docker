@@ -31,10 +31,10 @@ services:
       - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
       - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
       - SERVER_COUNTRIES=${SERVER_COUNTRIES}
-      - FIREWALL_INPUT_PORTS=${SEANIME_UI_PORT},${TRANSMISSION_WEB_PORT}
+      - FIREWALL_INPUT_PORTS=43211,${TRANSMISSION_WEB_PORT}
     # Optional: Uncomment ports to allow Local LAN access (e.g. localhost:3000)
     # ports:
-    #   - "${SEANIME_UI_PORT}:${SEANIME_UI_PORT}"
+    #   - "${SEANIME_UI_PORT}:43211"
     #   - "${TRANSMISSION_WEB_PORT}:9091"
     networks:
       - tsbridge
@@ -52,7 +52,7 @@ services:
     network_mode: "service:gluetun"
     environment:
       - SEANIME_SERVER_HOST=0.0.0.0
-      - SEANIME_SERVER_PORT=${SEANIME_UI_PORT}
+      - SEANIME_SERVER_PORT=43211
     volumes:
       - ./config/seanime:/home/seanime/.config/Seanime
       - ./data:/data
@@ -64,7 +64,7 @@ services:
       - "tsbridge.service.name=seanime"
       - "tsbridge.service.funnel_enabled=true"
       - "tsbridge.service.ephemeral=true"
-      - "tsbridge.service.backend_addr=http://gluetun:${SEANIME_UI_PORT}"
+      - "tsbridge.service.backend_addr=http://gluetun:43211"
       # - "tsbridge.service.insecure_skip_verify=true" # Enable if using self-signed certs and change backend_addr to https
       # Realtime events/streaming through proxy
       - "tsbridge.service.write_timeout=0s"

@@ -4,12 +4,11 @@ This configuration runs Seanime in a standard Docker container. It is the recomm
 
 ## Prerequisites (v3.2.3+)
 
-**User Permissions:**
-Seanime runs as UID `1000`. Ensure your config and data directories on the host are owned by UID `1000` before starting.
+**Prepare Folders:**
+Seanime runs as UID `1000`. To prevent permission issues, **create the directories manually** before starting the container. This ensures they are owned by your user account rather than the root user.
 
 ```bash
-mkdir ./config/ ./data/
-sudo chown -R 1000:1000 ./config/seanime ./data
+mkdir -p ./config/seanime ./data
 ```
 
 ## Setup
@@ -36,7 +35,7 @@ docker ps
 2. **First Run Setup:**
 
 - When prompted for the **Library Path**, enter: `/data`
-- This maps to the `./data` folder in your current directory (ensure you placed your media there and permissions are correct).
+- This maps to the `./data` folder in your current directory (ensure you placed your media there).
 
 ## Customization
 
@@ -49,5 +48,12 @@ If you need to change the port or volume locations, edit the `docker-compose.yml
 
 ## Troubleshooting
 
-**Check Permissions:**
-If Seanime crashes immediately, check the logs (`docker logs seanime`). It is could be a **Permission Denied** error, ensure you ran the `chown` commands mentioned in the Prerequisites.
+**Permission Errors / Container Crashing:**
+If the container crashes immediately or fails to save settings, check the logs (`docker logs seanime`). If you see **Permission Denied** errors, your user (UID 1000) likely does not own the config or data folders.
+
+**Fix:** Manually set the ownership to UID 1000:
+
+```bash
+sudo chown -R 1000:1000 ./config ./data
+docker compose restart
+```

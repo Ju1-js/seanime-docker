@@ -14,10 +14,10 @@ services:
       - SERVER_REGIONS=${SERVER_REGIONS}
       - SERVER_COUNTRIES=${SERVER_COUNTRIES}
       - SERVER_CITIES=${SERVER_CITIES}
-      - FIREWALL_INPUT_PORTS=${SEANIME_UI_PORT},${TRANSMISSION_WEB_PORT}
+      - FIREWALL_INPUT_PORTS=43211,${TRANSMISSION_WEB_PORT}
       - TZ=${TZ}
     ports:
-      - "${SEANIME_UI_PORT}:${SEANIME_UI_PORT}"
+      - "${SEANIME_UI_PORT}:43211"
       - "${TRANSMISSION_WEB_PORT}:9091"
       - "${TRANSMISSION_PEER_PORT}:${TRANSMISSION_PEER_PORT}"
       - "${TRANSMISSION_PEER_PORT}:${TRANSMISSION_PEER_PORT}/udp"
@@ -35,7 +35,7 @@ services:
     network_mode: "service:gluetun"
     environment:
       - SEANIME_SERVER_HOST=0.0.0.0
-      - SEANIME_SERVER_PORT=${SEANIME_UI_PORT}
+      - SEANIME_SERVER_PORT=43211
     volumes:
       - ./config/seanime:/home/seanime/.config/Seanime
       - ./data:/data
