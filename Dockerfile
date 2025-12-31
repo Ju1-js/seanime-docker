@@ -41,7 +41,6 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     echo "Building for $TARGETOS/$TARGETARCH (variant: $TARGETVARIANT)..." && \
     go build -tags timetzdata -o seanime -trimpath -ldflags="-s -w"
 
-# Base Image
 FROM --platform=$TARGETPLATFORM alpine:3.23.2 AS base
 
 RUN apk update && \
@@ -53,11 +52,17 @@ RUN apk update && \
 WORKDIR /app
 COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:43211 || \
+    wget --no-verbose --tries=1 --spider --no-check-certificate https://127.0.0.1:43211 || \
+    exit 1
+
 EXPOSE 43211
 
 USER 1000
 CMD ["/app/seanime"]
 
+# Slim Image
 FROM base AS slim
 USER root
 RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
@@ -87,3 +92,34 @@ RUN addgroup seanime video || true && \
     addgroup seanime render || true
 
 USER 1000
+
+FROM nvidia/cuda:13.1.0-runtime-ubuntu24.04 AS cuda
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates wget gnupg && \
+    mkdir -p /etc/apt/keyrings && \
+    wget -qO - https://repo.jellyfin.org/jellyfin_team.gpg.key | gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/jellyfin.gpg] https://repo.jellyfin.org/ubuntu noble main" > /etc/apt/sources.list.d/jellyfin.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends jellyfin-ffmpeg7 && \
+    ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg && \
+    ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN userdel -r ubuntu 2>/dev/null || true && \
+    groupdel ubuntu 2>/dev/null || true && \
+    groupadd -g 1000 seanime && \
+    useradd -u 1000 -g seanime -d /app -s /bin/false seanime
+
+WORKDIR /app
+COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:43211 || \
+    wget --no-verbose --tries=1 --spider --no-check-certificate https://127.0.0.1:43211 || \
+    exit 1
+
+EXPOSE 43211
+USER 1000
+CMD ["/app/seanime"]
