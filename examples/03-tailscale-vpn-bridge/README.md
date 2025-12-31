@@ -13,12 +13,11 @@ This allows you to access your Seanime instance remotely without port forwarding
 
 ## Prerequisites (v3.2.3+)
 
-**User Permissions:**
-Seanime runs as UID `1000`. Ensure your config and data directories on the host are owned by UID `1000` before starting.
+**Prepare Folders:**
+Seanime runs as UID `1000`. To prevent permission issues, **create the directories manually** before starting the container. This ensures they are owned by your user account rather than the root user.
 
 ```bash
-mkdir ./config/ ./data/
-sudo chown -R 1000:1000 ./config/seanime ./data
+mkdir -p ./config/seanime ./data
 ```
 
 ## Setup
@@ -85,5 +84,12 @@ Check the `tsbridge` logs to confirm your Funnel URLs:
 docker logs tsbridge
 ```
 
-**Check Permissions:**
-If Seanime crashes immediately, check the logs (`docker logs seanime`). It is could be a **Permission Denied** error, ensure you ran the `chown` commands mentioned in the Prerequisites.
+**Permission Errors / Container Crashing:**
+If Seanime crashes immediately, check the logs (`docker logs seanime`). If you see **Permission Denied** errors, your user (UID 1000) likely does not own the config or data folders.
+
+**Fix:** Manually set the ownership to UID 1000:
+
+```bash
+sudo chown -R 1000:1000 ./config ./data
+docker compose restart
+```
