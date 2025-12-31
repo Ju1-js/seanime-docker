@@ -1,4 +1,4 @@
-name: Publish Docker image
+name: Publish Docker Image
 
 run-name: >-
   ${{
@@ -23,13 +23,13 @@ on:
         type: boolean
         default: false
       repo:
-        description: "Dev: Repo (e.g., Ju1-js/seanime)"
+        description: "Dev: Repo"
         required: false
       branch:
-        description: "Dev: Branch (e.g., feature/TLS)"
+        description: "Dev: Branch"
         required: false
       cache_override:
-        description: "Override cache-from ('': default, 'NONE': no cache)"
+        description: "Override cache ref ('NONE': no cache)"
         required: false
         type: string
   repository_dispatch:
@@ -38,21 +38,22 @@ on:
     - cron: "0 */12 * * *"
 
 concurrency:
-  group: build-seanime
+  group: build-seanime-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  check_and_build:
-    name: Build and Push
+  check:
+    name: Check Version
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: write
-      id-token: write
-
+    outputs:
+      BUILD_NEEDED: ${{ steps.target.outputs.BUILD_NEEDED }}
+      BUILD_TYPE: ${{ steps.target.outputs.BUILD_TYPE }}
+      LATEST_RELEASE: ${{ steps.target.outputs.LATEST_RELEASE }}
+      CACHE_IMAGE: ${{ steps.cache_config.outputs.CACHE_IMAGE }}
+      CACHE_FROM: ${{ steps.cache_config.outputs.CACHE_FROM }}
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Determine Target Version
         id: target
@@ -65,12 +66,10 @@ jobs:
           if [ "$TYPE" == "dev" ]; then
             echo "BUILD_TYPE=dev" >> $GITHUB_OUTPUT
             echo "BUILD_NEEDED=true" >> $GITHUB_OUTPUT
+            echo "LATEST_RELEASE=dev" >> $GITHUB_OUTPUT
           else
             UPSTREAM=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/5rahim/seanime/releases/latest | jq -r .tag_name)
-            if [ "$UPSTREAM" == "null" ] || [ -z "$UPSTREAM" ]; then
-              echo "Error: Failed to fetch upstream version. API returned null or empty."
-              exit 1
-            fi
+            if [ "$UPSTREAM" == "null" ] || [ -z "$UPSTREAM" ]; then echo "Error: API null"; exit 1; fi
 
             CURRENT=$(cat .version 2>/dev/null || echo "none")
             FORCE="${{ github.event.inputs.force_build }}"
@@ -80,67 +79,12 @@ jobs:
 
             if [ "$UPSTREAM" != "$CURRENT" ] || [ "$FORCE" == "true" ]; then
               echo "BUILD_NEEDED=true" >> $GITHUB_OUTPUT
-              echo "Status: New version ($UPSTREAM) or Forced. Building."
             else
               echo "BUILD_NEEDED=false" >> $GITHUB_OUTPUT
-              echo "Status: Up to date ($CURRENT). Skipping."
             fi
           fi
 
-      - name: Prepare Source
-        if: steps.target.outputs.BUILD_NEEDED == 'true'
-        run: |
-          if [ "${{ steps.target.outputs.BUILD_TYPE }}" == "dev" ]; then
-            REPO="${{ github.event.inputs.repo }}"
-            BRANCH="${{ github.event.inputs.branch }}"
-            [ -z "$REPO" ] && REPO="5rahim/seanime"
-            [ -z "$BRANCH" ] && BRANCH="main"
-            echo "Cloning $REPO (branch: $BRANCH)..."
-            git clone https://github.com/${REPO}.git src
-            cd src && git checkout $BRANCH
-          else
-            chmod +x ./scripts/prepare.sh
-            ./scripts/prepare.sh ${{ steps.target.outputs.LATEST_RELEASE }} src
-          fi
-
-      - name: Set up QEMU
-        if: steps.target.outputs.BUILD_NEEDED == 'true'
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        if: steps.target.outputs.BUILD_NEEDED == 'true'
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        if: steps.target.outputs.BUILD_NEEDED == 'true'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Log in to GHCR
-        if: steps.target.outputs.BUILD_NEEDED == 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (Slim)
-        if: steps.target.outputs.BUILD_NEEDED == 'true'
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ju1js/seanime
-            ghcr.io/ju1-js/seanime
-          tags: |
-            type=raw,value=${{ steps.target.outputs.LATEST_RELEASE }},enable=${{ steps.target.outputs.BUILD_TYPE == 'release' }}
-            type=raw,value=latest,enable=${{ steps.target.outputs.BUILD_TYPE == 'release' }}
-            type=raw,value=dev,enable=${{ steps.target.outputs.BUILD_TYPE == 'dev' }}
-
       - name: Configure Cache
-        if: steps.target.outputs.BUILD_NEEDED == 'true'
         id: cache_config
         run: |
           OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
@@ -148,45 +92,130 @@ jobs:
           echo "CACHE_IMAGE=$CACHE_IMAGE" >> $GITHUB_OUTPUT
 
           OVERRIDE="${{ github.event.inputs.cache_override }}"
-
           if [ -n "$OVERRIDE" ]; then
-            if [ "$OVERRIDE" == "NONE" ]; then
-               echo "Using NO cache (Manual Override)"
-               echo "CACHE_FROM=" >> $GITHUB_OUTPUT
-            else
-               echo "Using custom cache ref: $OVERRIDE"
-               echo "CACHE_FROM=type=registry,ref=$OVERRIDE" >> $GITHUB_OUTPUT
-            fi
+             [ "$OVERRIDE" == "NONE" ] && echo "CACHE_FROM=" >> $GITHUB_OUTPUT || echo "CACHE_FROM=type=registry,ref=$OVERRIDE" >> $GITHUB_OUTPUT
           else
-            echo "Using default cache waterfall"
-            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-            echo "CACHE_FROM<<$EOF" >> $GITHUB_OUTPUT
-            echo "type=registry,ref=$CACHE_IMAGE:${{ steps.target.outputs.BUILD_TYPE }}" >> $GITHUB_OUTPUT
-            echo "type=registry,ref=$CACHE_IMAGE:release" >> $GITHUB_OUTPUT
-            echo "$EOF" >> $GITHUB_OUTPUT
+             EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+             echo "CACHE_FROM<<$EOF" >> $GITHUB_OUTPUT
+             echo "type=registry,ref=$CACHE_IMAGE:core-${{ steps.target.outputs.BUILD_TYPE }}" >> $GITHUB_OUTPUT
+             echo "type=registry,ref=$CACHE_IMAGE:${{ steps.target.outputs.BUILD_TYPE }}" >> $GITHUB_OUTPUT
+             echo "$EOF" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push (Slim)
-        if: steps.target.outputs.BUILD_NEEDED == 'true'
+  build_core:
+    name: Build Core (Go/Node)
+    needs: check
+    if: needs.check.outputs.BUILD_NEEDED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Prepare Source
+        run: |
+          if [ "${{ needs.check.outputs.BUILD_TYPE }}" == "dev" ]; then
+            REPO="${{ github.event.inputs.repo }}"
+            BRANCH="${{ github.event.inputs.branch }}"
+            [ -z "$REPO" ] && REPO="5rahim/seanime"
+            [ -z "$BRANCH" ] && BRANCH="main"
+            git clone https://github.com/${REPO}.git src && cd src && git checkout $BRANCH
+          else
+            chmod +x ./scripts/prepare.sh
+            ./scripts/prepare.sh ${{ needs.check.outputs.LATEST_RELEASE }} src
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Cache Core
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          target: slim
-          push: true
-          provenance: mode=max
-          sbom: true
+          target: go-builder
+          push: false
           platforms: linux/amd64,linux/arm64,linux/arm/v7
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            SEANIME_VERSION=${{ steps.target.outputs.LATEST_RELEASE }}
-          cache-from: ${{ steps.cache_config.outputs.CACHE_FROM }}
-          cache-to: type=registry,ref=${{ steps.cache_config.outputs.CACHE_IMAGE }}:${{ steps.target.outputs.BUILD_TYPE }},mode=max
+            SEANIME_VERSION=${{ needs.check.outputs.LATEST_RELEASE }}
+          cache-from: ${{ needs.check.outputs.CACHE_FROM }}
+          cache-to: type=registry,ref=${{ needs.check.outputs.CACHE_IMAGE }}:core-${{ needs.check.outputs.BUILD_TYPE }},mode=max
 
-      - name: Extract metadata (HW Accel)
-        if: steps.target.outputs.BUILD_NEEDED == 'true'
-        id: meta_hwaccel
+  build_dist:
+    name: Build ${{ matrix.target }}
+    needs: [check, build_core]
+    if: needs.check.outputs.BUILD_NEEDED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: slim
+            platforms: linux/amd64,linux/arm64,linux/arm/v7
+            suffix: ""
+            cache_write: true
+          - target: hwaccel
+            platforms: linux/amd64,linux/arm64,linux/arm/v7
+            suffix: "-hwaccel"
+            cache_write: false
+          - target: cuda
+            platforms: linux/amd64,linux/arm64
+            suffix: "-cuda"
+            cache_write: false
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Prepare Source
+        run: |
+          if [ "${{ needs.check.outputs.BUILD_TYPE }}" == "dev" ]; then
+            REPO="${{ github.event.inputs.repo }}"
+            BRANCH="${{ github.event.inputs.branch }}"
+            [ -z "$REPO" ] && REPO="5rahim/seanime"
+            [ -z "$BRANCH" ] && BRANCH="main"
+            git clone https://github.com/${REPO}.git src && cd src && git checkout $BRANCH
+          else
+            chmod +x ./scripts/prepare.sh
+            ./scripts/prepare.sh ${{ needs.check.outputs.LATEST_RELEASE }} src
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
@@ -194,40 +223,49 @@ jobs:
             ghcr.io/ju1-js/seanime
           flavor: |
             latest=auto
-            suffix=-hwaccel,onlatest=true
+            suffix=${{ matrix.suffix }},onlatest=true
           tags: |
-            type=raw,value=${{ steps.target.outputs.LATEST_RELEASE }},enable=${{ steps.target.outputs.BUILD_TYPE == 'release' }}
-            type=raw,value=latest,enable=${{ steps.target.outputs.BUILD_TYPE == 'release' }}
-            type=raw,value=dev,enable=${{ steps.target.outputs.BUILD_TYPE == 'dev' }}
+            type=raw,value=${{ needs.check.outputs.LATEST_RELEASE }},enable=${{ needs.check.outputs.BUILD_TYPE == 'release' }}
+            type=raw,value=latest,enable=${{ needs.check.outputs.BUILD_TYPE == 'release' }}
+            type=raw,value=dev,enable=${{ needs.check.outputs.BUILD_TYPE == 'dev' }}
 
-      - name: Build and push (HW Accel)
-        if: steps.target.outputs.BUILD_NEEDED == 'true'
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          target: hwaccel
+          target: ${{ matrix.target }}
           push: true
           provenance: mode=max
           sbom: true
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
-          tags: ${{ steps.meta_hwaccel.outputs.tags }}
-          labels: ${{ steps.meta_hwaccel.outputs.labels }}
+          platforms: ${{ matrix.platforms }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            SEANIME_VERSION=${{ steps.target.outputs.LATEST_RELEASE }}
-          cache-from: type=registry,ref=${{ steps.cache_config.outputs.CACHE_IMAGE }}:${{ steps.target.outputs.BUILD_TYPE }}
+            SEANIME_VERSION=${{ needs.check.outputs.LATEST_RELEASE }}
+          cache-from: ${{ needs.check.outputs.CACHE_FROM }}
+          cache-to: ${{ matrix.cache_write && format('type=registry,ref={0}:{1},mode=max', needs.check.outputs.CACHE_IMAGE, needs.check.outputs.BUILD_TYPE) || '' }}
 
-      - name: Update version file
-        if: steps.target.outputs.BUILD_NEEDED == 'true' && steps.target.outputs.BUILD_TYPE == 'release'
+  update_repo_version:
+    name: Commit Version Update
+    needs: [check, build_dist]
+    if: needs.check.outputs.BUILD_NEEDED == 'true' && needs.check.outputs.BUILD_TYPE == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update .version file
         run: |
-          git reset --hard
-          git clean -fd
-          echo "${{ steps.target.outputs.LATEST_RELEASE }}" > .version
           git config user.name github-actions
           git config user.email github-actions@github.com
+          git pull origin main --rebase
+          echo "${{ needs.check.outputs.LATEST_RELEASE }}" > .version
           git add .version
           if ! git diff --cached --quiet; then
-            git commit -m "Update to seanime version ${{ steps.target.outputs.LATEST_RELEASE }}"
-            git pull --rebase origin main
+            git commit -m "chore(release): update seanime version to ${{ needs.check.outputs.LATEST_RELEASE }}"
             git push
           fi
