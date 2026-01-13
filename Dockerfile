@@ -63,9 +63,9 @@ USER root
 RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
     apk update && \
     apk upgrade --no-cache && \
-    PACKAGES="jellyfin-ffmpeg mesa-va-gallium opencl-icd-loader" && \
+    PACKAGES="jellyfin-ffmpeg mesa-va-gallium opencl-icd-loader libva-utils" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-    PACKAGES="$PACKAGES intel-media-driver libva-intel-driver"; \
+    PACKAGES="$PACKAGES intel-media-driver intel-compute-runtime"; \
     fi && \
     apk add --no-cache $PACKAGES && \
     ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg && \
@@ -76,7 +76,10 @@ RUN addgroup seanime video || true && \
 
 USER 1000
 
-FROM nvidia/cuda:13.1.0-runtime-ubuntu24.04 AS cuda
+FROM nvidia/cuda:13.1.0-base-ubuntu24.04 AS cuda
+
+ENV NVIDIA_DRIVER_CAPABILITIES=all
+ENV NVIDIA_VISIBLE_DEVICES=all
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates wget gnupg && \
@@ -93,7 +96,8 @@ RUN apt-get update && \
 RUN userdel -r ubuntu 2>/dev/null || true && \
     groupdel ubuntu 2>/dev/null || true && \
     groupadd -g 1000 seanime && \
-    useradd -u 1000 -g seanime -d /app -s /bin/false seanime
+    groupadd -r render 2>/dev/null || true && \
+    useradd -u 1000 -g seanime -G video,render -d /app -s /bin/false seanime
 
 WORKDIR /app
 COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
@@ -104,5 +108,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     exit 1
 
 EXPOSE 43211
+
+VOLUME ["/home/seanime/.config/Seanime"]
+
 USER 1000
 CMD ["/app/seanime"]
