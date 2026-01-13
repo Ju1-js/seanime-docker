@@ -18,27 +18,11 @@ COPY --link src/go.mod src/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY --link src/ .
 
-# Fixes:
-# CVE-2025-5953, CVE-2025-4914, CVE-2025-64702
-# GHSA-2464-8j7c-4cjm, GHSA-fv92-fjc5-jj9h
-# Note: We update 'req' to v3.57.0+ to support quic-go v0.57+
-RUN go get github.com/quic-go/quic-go@v0.57.1 && \
-    go get github.com/go-viper/mapstructure/v2@v2.4.0 && \
-    go get github.com/imroc/req/v3@v3.57.0 && \
-    go get github.com/pion/interceptor@v0.1.39 && \
-    go mod tidy
-
 COPY --from=node-builder --link /tmp/build/out /tmp/build/web
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    set -e && \
-    export CGO_ENABLED=0 && \
-    export GOOS=$TARGETOS && \
-    export GOARCH=$TARGETARCH && \
-    if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then \
-    export GOARM=7; \
-    fi && \
-    echo "Building for $TARGETOS/$TARGETARCH (variant: $TARGETVARIANT)..." && \
+    export CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH && \
+    if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then export GOARM=7; fi && \
     go build -tags timetzdata -o seanime -trimpath -ldflags="-s -w"
 
 FROM --platform=$TARGETPLATFORM alpine:3.23.2 AS base
@@ -62,7 +46,6 @@ EXPOSE 43211
 USER 1000
 CMD ["/app/seanime"]
 
-# Slim Image
 FROM base AS slim
 USER root
 RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
