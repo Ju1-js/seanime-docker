@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then export GOARM=7; fi && \
     go build -tags timetzdata -o seanime -trimpath -ldflags="-s -w"
 
-FROM --platform=$TARGETPLATFORM alpine:3.23.2 AS base
+FROM --platform=$TARGETPLATFORM alpine:3.23.3 AS base
 
 RUN apk update && \
     apk upgrade --no-cache && \
@@ -76,7 +76,7 @@ RUN addgroup seanime video || true && \
 
 USER 1000
 
-FROM nvidia/cuda:13.1.0-base-ubuntu24.04 AS cuda
+FROM nvidia/cuda:13.1.1-base-ubuntu24.04 AS cuda
 
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV NVIDIA_VISIBLE_DEVICES=all
