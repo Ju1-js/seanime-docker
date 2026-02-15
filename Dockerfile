@@ -18,6 +18,11 @@ COPY --link src/go.mod src/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY --link src/ .
 
+# Fixes: CVE-2026-26014
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go get github.com/pion/dtls/v3@v3.1.2 && \
+    go mod tidy
+
 COPY --from=node-builder --link /tmp/build/out /tmp/build/web
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
