@@ -4,10 +4,21 @@ scripts/goss-linux-*
 # Seanime source (fetched by scripts/prepare.sh)
 /seanime/
 /codegen/
+/docs/
 /electron/
 /internal/
 /seanime-denshi/
+/seanime-desktop/
 /seanime-web/
+/test/
+/.gitmodules
+/.golangci.yml
+/.github/FUNDING.yml
+/.github/ISSUE_TEMPLATE/
+/.github/scripts/
+/.github/workflows/electron-build.yml
+/.github/workflows/release-draft-new.yml
+/.github/workflows/release-draft.yml.old
 /go.mod
 /go.sum
 /main.go
