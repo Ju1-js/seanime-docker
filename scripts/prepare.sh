@@ -28,6 +28,12 @@ else
     cd ..
 fi
 
-# Copy the files to the root of the project (excluding .git and Dockerfile if present)
+# Copy the files to the root of the project (excluding repo-owned files)
 echo "Copying files to root..."
-rsync -av --exclude='.git' --exclude='Dockerfile' seanime/ .
+rsync -av \
+    --exclude='.git' \
+    --exclude='.gitignore' \
+    --exclude='.github' \
+    --exclude='Dockerfile' \
+    --exclude='README.md' \
+    seanime/ .

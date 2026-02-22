@@ -69,8 +69,9 @@ Jellyfin FFmpeg support for GPU-accelerated video transcoding.
   - `jellyfin-ffmpeg` - FFmpeg with hardware acceleration
   - `mesa-va-gallium` - VA-API support for AMD/generic GPUs
   - `opencl-icd-loader` - OpenCL support
-  - **AMD64 only**:
-    - `intel-media-driver` - Intel Gen 8+ GPU support
+  - **AMD64 only** (from Alpine edge repos):
+    - `intel-media-driver` - Intel Gen 8+ GPU support (Alpine edge/community)
+    - `onevpl-intel-gpu` - Intel 12th+ gen Quick Sync / OneVPL support (Alpine edge/testing)
     - `libva-intel-driver` - Intel Gen 1-7 GPU support
 - **FFmpeg Setup**:
   - Binaries located at `/usr/lib/jellyfin-ffmpeg/`
@@ -134,7 +135,8 @@ None required for basic operation.
 ### Intel GPUs
 
 - **Supported Generations**:
-  - Gen 8+ (Broadwell and newer): Uses `intel-media-driver` (iHD)
+  - Gen 12+ (Alder Lake / 12th gen and newer): Uses `intel-media-driver` (iHD) + `onevpl-intel-gpu` (OneVPL runtime for Quick Sync)
+  - Gen 8-11 (Broadwell to Rocket Lake): Uses `intel-media-driver` (iHD)
   - Gen 1-7 (Sandy Bridge to Haswell): Uses `libva-intel-driver` (i965)
 - **Features**:
   - H.264/AVC encoding/decoding

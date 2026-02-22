@@ -34,6 +34,10 @@ package:
     installed: true
   mesa-va-gallium:
     installed: true
+  intel-media-driver:
+    installed: true
+  onevpl-intel-gpu:
+    installed: true
   # opencl-icd-loader is optional - may not be available in all environments
   # opencl-icd-loader:
   #   installed: true

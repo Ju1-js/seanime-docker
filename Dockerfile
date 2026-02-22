@@ -108,7 +108,10 @@ RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
     apk update && \
     PACKAGES="jellyfin-ffmpeg mesa-va-gallium opencl-icd-loader" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-    PACKAGES="$PACKAGES intel-media-driver libva-intel-driver"; \
+    PACKAGES="$PACKAGES libva-intel-driver"; \
+    apk add --no-cache \
+        --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community intel-media-driver \
+        --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing onevpl-intel-gpu; \
     fi && \
     apk add --no-cache --repository=https://repo.jellyfin.org/releases/alpine/ $PACKAGES && \
     chmod +x /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/lib/jellyfin-ffmpeg/ffprobe && \

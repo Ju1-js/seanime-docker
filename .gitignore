@@ -1,2 +1,17 @@
 # Testing binaries
 scripts/goss-linux-*
+
+# Seanime source (fetched by scripts/prepare.sh)
+/seanime/
+/codegen/
+/electron/
+/internal/
+/seanime-denshi/
+/seanime-web/
+/go.mod
+/go.sum
+/main.go
+/CHANGELOG.md
+/CONTRIBUTING.md
+/DEVELOPMENT_AND_BUILD.md
+/LICENSE
