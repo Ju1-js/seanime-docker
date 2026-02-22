@@ -38,6 +38,8 @@ package:
     installed: true
   libvpl:
     installed: true
+  onevpl-intel-gpu:
+    installed: true
   # opencl-icd-loader is optional - may not be available in all environments
   # opencl-icd-loader:
   #   installed: true

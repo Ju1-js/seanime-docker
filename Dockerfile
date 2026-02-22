@@ -112,6 +112,7 @@ RUN apk update && \
     PACKAGES="jellyfin-ffmpeg mesa-va-gallium opencl-icd-loader" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
     PACKAGES="$PACKAGES libva-intel-driver intel-media-driver libvpl"; \
+    apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing onevpl-intel-gpu; \
     fi && \
     apk add --no-cache --repository=https://repo.jellyfin.org/releases/alpine/ $PACKAGES && \
     chmod +x /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/lib/jellyfin-ffmpeg/ffprobe && \
