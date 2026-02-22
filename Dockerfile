@@ -96,7 +96,11 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD ["/app/seanime"]
 
 # Stage 6: Hardware Acceleration Variant
-FROM common-base AS hwaccel
+FROM --platform=$TARGETPLATFORM alpine:edge AS hwaccel
+
+# Install common dependencies
+RUN apk add --no-cache ca-certificates tzdata curl
+
 ARG TARGETARCH
 
 # Create user and add to group
@@ -104,14 +108,10 @@ RUN addgroup -S seanime -g 1000 && \
     adduser -S seanime -G seanime -u 1000
 
 # Install Jellyfin FFmpeg and Intel drivers (amd64 only)
-RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
-    apk update && \
+RUN apk update && \
     PACKAGES="jellyfin-ffmpeg mesa-va-gallium opencl-icd-loader" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-    PACKAGES="$PACKAGES libva-intel-driver"; \
-    apk add --no-cache \
-        --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community intel-media-driver \
-        --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing onevpl-intel-gpu; \
+    PACKAGES="$PACKAGES libva-intel-driver intel-media-driver libvpl"; \
     fi && \
     apk add --no-cache --repository=https://repo.jellyfin.org/releases/alpine/ $PACKAGES && \
     chmod +x /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/lib/jellyfin-ffmpeg/ffprobe && \
