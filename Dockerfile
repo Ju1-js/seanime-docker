@@ -43,9 +43,12 @@ WORKDIR /app
 COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:43211 || \
-    wget --no-verbose --tries=1 --spider --no-check-certificate https://127.0.0.1:43211 || \
-    exit 1
+    CMD sh -c 'if [ -f /tmp/is_https ]; then \
+            wget -q -t 1 --spider --no-check-certificate https://127.0.0.1:43211 || (rm -f /tmp/is_https && exit 1); \
+        else \
+            wget -q -t 1 --spider http://127.0.0.1:43211 || \
+            (wget -q -t 1 --spider --no-check-certificate https://127.0.0.1:43211 && touch /tmp/is_https) || exit 1; \
+        fi'
 
 EXPOSE 43211
 
@@ -109,9 +112,12 @@ WORKDIR /app
 COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:43211 || \
-    wget --no-verbose --tries=1 --spider --no-check-certificate https://127.0.0.1:43211 || \
-    exit 1
+    CMD sh -c 'if [ -f /tmp/is_https ]; then \
+            wget -q -t 1 --spider --no-check-certificate https://127.0.0.1:43211 || (rm -f /tmp/is_https && exit 1); \
+        else \
+            wget -q -t 1 --spider http://127.0.0.1:43211 || \
+            (wget -q -t 1 --spider --no-check-certificate https://127.0.0.1:43211 && touch /tmp/is_https) || exit 1; \
+        fi'
 
 EXPOSE 43211
 
