@@ -18,10 +18,11 @@ COPY --link src/go.mod src/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY --link src/ .
 
-# Fixes: CVE-2026-26014, CVE-2026-26995
+# Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141
 RUN --mount=type=cache,target=/go/pkg/mod \
     go get github.com/pion/dtls/v3@v3.1.2 && \
     go get github.com/refraction-networking/utls@v1.8.2 && \
+    go get golang.org/x/net@v0.51.0 && \
     go mod tidy
 
 COPY --from=node-builder --link /tmp/build/out /tmp/build/web
