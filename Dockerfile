@@ -35,12 +35,16 @@ RUN apk update && \
     apk upgrade --no-cache && \
     apk add --no-cache ca-certificates tzdata && \
     addgroup -S seanime -g 1000 && \
-    adduser -S seanime -G seanime -u 1000
+    adduser -S seanime -G seanime -u 1000 -h /home/seanime && \
+    mkdir -p /home/seanime/.config/Seanime && \
+    chown -R seanime:seanime /home/seanime
 
 WORKDIR /app
 
-# Assembly Base
 FROM os-base AS base
+ENV SEANIME_SERVER_HOST=0.0.0.0
+ENV SEANIME_SERVER_PORT=43211
+
 COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
 COPY --link --chown=1000:1000 --chmod=755 scripts/healthcheck.sh /usr/local/bin/healthcheck.sh
 
@@ -48,6 +52,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD ["healthcheck.sh"]
 
 EXPOSE 43211
+VOLUME ["/home/seanime/.config/Seanime"]
 
 USER 1000
 CMD ["/app/seanime"]
@@ -85,6 +90,8 @@ USER 1000
 FROM nvidia/cuda:13.1.1-base-ubuntu24.04 AS cuda
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV NVIDIA_VISIBLE_DEVICES=all
+ENV SEANIME_SERVER_HOST=0.0.0.0
+ENV SEANIME_SERVER_PORT=43211
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates wget gnupg && \
@@ -102,7 +109,9 @@ RUN userdel -r ubuntu 2>/dev/null || true && \
     groupdel ubuntu 2>/dev/null || true && \
     groupadd -g 1000 seanime && \
     groupadd -r render 2>/dev/null || true && \
-    useradd -u 1000 -g seanime -G video,render -d /app -s /bin/false seanime
+    useradd -u 1000 -g seanime -G video,render -m -d /home/seanime -s /bin/false seanime && \
+    mkdir -p /home/seanime/.config/Seanime && \
+    chown -R seanime:seanime /home/seanime
 
 WORKDIR /app
 COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
@@ -112,7 +121,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD ["healthcheck.sh"]
 
 EXPOSE 43211
-
 VOLUME ["/home/seanime/.config/Seanime"]
 
 USER 1000

@@ -24,10 +24,10 @@ To improve security, this image now runs as a non-root user named `seanime` (UID
 - [Image Variants](#image-variants)
 - [Platform Support](#platform-support)
 - [Usage](#usage)
-  - [Docker CLI](#docker-cli)
-  - [Docker Compose](#docker-compose)
-  - [Hardware Acceleration](#hardware-acceleration)
-  - [Advanced Examples](#advanced-examples)
+    - [Docker CLI](#docker-cli)
+    - [Docker Compose](#docker-compose)
+    - [Hardware Acceleration](#hardware-acceleration)
+    - [Advanced Examples](#advanced-examples)
 - [Configuration](#configuration)
 - [Contributing](#contributing)
 - [License](#license)
@@ -94,18 +94,15 @@ For a standard setup, create a `docker-compose.yml`:
 
 ```yaml
 services:
-  seanime:
-    image: ju1js/seanime:latest
-    container_name: seanime
-    environment:
-      - SEANIME_SERVER_HOST=0.0.0.0
-      - SEANIME_SERVER_PORT=43211
-    ports:
-      - "43211:43211"
-    volumes:
-      - ./config/seanime:/home/seanime/.config/Seanime
-      - ./data:/data
-    restart: unless-stopped
+    seanime:
+        image: ju1js/seanime:latest
+        container_name: seanime
+        ports:
+            - "43211:43211"
+        volumes:
+            - ./config/seanime:/home/seanime/.config/Seanime
+            - ./data:/data
+        restart: unless-stopped
 ```
 
 ### Hardware Acceleration
@@ -116,19 +113,16 @@ Depending on your hardware, update the image tag and device mappings in your `do
 
 ```yaml
 services:
-  seanime:
-    image: ju1js/seanime:latest-hwaccel
-    devices:
-      - /dev/dri:/dev/dri # Passes the iGPU
-    environment:
-      - SEANIME_SERVER_HOST=0.0.0.0
-      - SEANIME_SERVER_PORT=43211
-    ports:
-      - "43211:43211"
-    volumes:
-      - ./config/seanime:/home/seanime/.config/Seanime
-      - ./data:/data
-    restart: unless-stopped
+    seanime:
+        image: ju1js/seanime:latest-hwaccel
+        devices:
+            - /dev/dri:/dev/dri # Passes the iGPU
+        ports:
+            - "43211:43211"
+        volumes:
+            - ./config/seanime:/home/seanime/.config/Seanime
+            - ./data:/data
+        restart: unless-stopped
 ```
 
 #### Option B: NVIDIA (NVENC)
@@ -137,24 +131,21 @@ Ensure you have the **NVIDIA Container Toolkit** installed on your host.
 
 ```yaml
 services:
-  seanime:
-    image: ju1js/seanime:latest-cuda
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu, video]
-    environment:
-      - SEANIME_SERVER_HOST=0.0.0.0
-      - SEANIME_SERVER_PORT=43211
-    ports:
-      - "43211:43211"
-    volumes:
-      - ./config/seanime:/home/seanime/.config/Seanime
-      - ./data:/data
-    restart: unless-stopped
+    seanime:
+        image: ju1js/seanime:latest-cuda
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - driver: nvidia
+                          count: 1
+                          capabilities: [gpu, video]
+        ports:
+            - "43211:43211"
+        volumes:
+            - ./config/seanime:/home/seanime/.config/Seanime
+            - ./data:/data
+        restart: unless-stopped
 ```
 
 ### Advanced Examples
