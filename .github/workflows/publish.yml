@@ -103,7 +103,7 @@ jobs:
           fi
 
   build_core:
-    name: Build Core (Go/Node)
+    name: Build Core (Go/UI)
     needs: check
     if: needs.check.outputs.BUILD_NEEDED == 'true'
     runs-on: ubuntu-latest

@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1.4
 
-# Node.js Builder
-FROM --platform=$BUILDPLATFORM node:lts-slim AS node-builder
+# UI Builder
+FROM --platform=$BUILDPLATFORM oven/bun:1-slim AS ui-builder
 WORKDIR /tmp/build
-COPY --link src/seanime-web/package.json src/seanime-web/package-lock.json* ./
-RUN --mount=type=cache,target=/root/.npm npm ci
+COPY --link src/seanime-web/package.json src/seanime-web/package-lock.json* src/seanime-web/bun.lockb* ./
+RUN --mount=type=cache,target=/root/.bun/install/cache bun install
 COPY --link src/seanime-web ./
-RUN npm run build
+RUN bun run build
 
 # Go Builder
 FROM --platform=$BUILDPLATFORM golang:alpine AS go-builder
@@ -15,25 +15,22 @@ ARG TARGETARCH
 ARG TARGETVARIANT
 WORKDIR /tmp/build
 COPY --link src/go.mod src/go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN go mod download
 COPY --link src/ .
 
 # Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go get github.com/pion/dtls/v3@v3.1.2 && \
+RUN go get github.com/pion/dtls/v3@v3.1.2 && \
     go get github.com/refraction-networking/utls@v1.8.2 && \
     go get golang.org/x/net@v0.51.0 && \
     go mod tidy
 
-COPY --from=node-builder --link /tmp/build/out /tmp/build/web
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
+COPY --from=ui-builder --link /tmp/build/out /tmp/build/web
+RUN --mount=type=cache,target=/root/.cache/go-build \
     export CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH && \
     if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then export GOARM=7; fi && \
     go build -tags timetzdata -o seanime -trimpath -ldflags="-s -w"
 
-FROM --platform=$TARGETPLATFORM alpine:3.23.3 AS base
-
+FROM --platform=$TARGETPLATFORM alpine:3.23.3 AS os-base
 RUN apk update && \
     apk upgrade --no-cache && \
     apk add --no-cache ca-certificates tzdata && \
@@ -41,15 +38,14 @@ RUN apk update && \
     adduser -S seanime -G seanime -u 1000
 
 WORKDIR /app
+
+# Assembly Base
+FROM os-base AS base
 COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
+COPY --link --chown=1000:1000 --chmod=755 scripts/healthcheck.sh /usr/local/bin/healthcheck.sh
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD sh -c 'if [ -f /tmp/is_https ]; then \
-            wget -q -t 1 --spider --no-check-certificate https://127.0.0.1:43211 || (rm -f /tmp/is_https && exit 1); \
-        else \
-            wget -q -t 1 --spider http://127.0.0.1:43211 || \
-            (wget -q -t 1 --spider --no-check-certificate https://127.0.0.1:43211 && touch /tmp/is_https) || exit 1; \
-        fi'
+    CMD ["healthcheck.sh"]
 
 EXPOSE 43211
 
@@ -87,7 +83,6 @@ RUN addgroup seanime video || true && \
 USER 1000
 
 FROM nvidia/cuda:13.1.1-base-ubuntu24.04 AS cuda
-
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV NVIDIA_VISIBLE_DEVICES=all
 
@@ -111,14 +106,10 @@ RUN userdel -r ubuntu 2>/dev/null || true && \
 
 WORKDIR /app
 COPY --from=go-builder --link --chown=1000:1000 /tmp/build/seanime /app/
+COPY --link --chown=1000:1000 --chmod=755 scripts/healthcheck.sh /usr/local/bin/healthcheck.sh
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD sh -c 'if [ -f /tmp/is_https ]; then \
-            wget -q -t 1 --spider --no-check-certificate https://127.0.0.1:43211 || (rm -f /tmp/is_https && exit 1); \
-        else \
-            wget -q -t 1 --spider http://127.0.0.1:43211 || \
-            (wget -q -t 1 --spider --no-check-certificate https://127.0.0.1:43211 && touch /tmp/is_https) || exit 1; \
-        fi'
+    CMD ["healthcheck.sh"]
 
 EXPOSE 43211
 
