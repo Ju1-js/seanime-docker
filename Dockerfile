@@ -20,10 +20,11 @@ COPY --link src/go.mod src/go.sum ./
 RUN go mod download
 COPY --link src/ .
 
-# Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141
+# Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141, CVE-2026-33809
 RUN go get github.com/pion/dtls/v3@v3.1.2 && \
     go get github.com/refraction-networking/utls@v1.8.2 && \
     go get golang.org/x/net@v0.51.0 && \
+    go get golang.org/x/image@v0.38.0 && \
     go mod tidy
 
 COPY --from=ui-builder --link /tmp/build/out /tmp/build/web
@@ -32,10 +33,14 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then export GOARM=7; fi && \
     go build -tags timetzdata -o seanime -trimpath -ldflags="-s -w"
 
-FROM --platform=$TARGETPLATFORM alpine:3.23.3 AS os-base
-RUN apk update && \
-    apk upgrade --no-cache && \
-    apk add --no-cache ca-certificates tzdata && \
+FROM --platform=$TARGETPLATFORM alpine:3.21.6 AS os-base
+RUN apk upgrade --no-cache && \
+    apk add --no-cache \
+        ca-certificates \
+        tzdata \
+        zlib \
+        expat \
+        libpng && \
     addgroup -S seanime -g 1000 && \
     adduser -S seanime -G seanime -u 1000 -h /home/seanime && \
     mkdir -p /home/seanime/.config/Seanime && \
@@ -89,7 +94,7 @@ RUN addgroup seanime video || true && \
 
 USER 1000
 
-FROM nvidia/cuda:13.1.1-base-ubuntu24.04 AS cuda
+FROM nvidia/cuda:13.2.0-base-ubuntu24.04 AS cuda
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV SEANIME_SERVER_HOST=0.0.0.0
