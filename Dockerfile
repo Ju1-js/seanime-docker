@@ -33,7 +33,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then export GOARM=7; fi && \
     go build -tags timetzdata -o seanime -trimpath -ldflags="-s -w"
 
-FROM --platform=$TARGETPLATFORM alpine:3.21.6 AS os-base
+FROM --platform=$TARGETPLATFORM alpine:3.23 AS os-base
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
         ca-certificates \
