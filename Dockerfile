@@ -95,7 +95,7 @@ RUN addgroup seanime video || true && \
 
 USER 1000
 
-FROM nvidia/cuda:13.2.0-base-ubuntu24.04 AS cuda
+FROM nvidia/cuda:13.2.1-base-ubuntu24.04 AS cuda
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV SEANIME_SERVER_HOST=0.0.0.0
