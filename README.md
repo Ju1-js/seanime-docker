@@ -7,18 +7,6 @@ A simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a s
 
 Now available in **Standard**, **Hardware Accelerated (Intel/AMD)**, and **NVIDIA CUDA** variants.
 
-## **Breaking Changes (v3.2.3)**
-
-**The internal container user has changed.**
-To improve security, this image now runs as a non-root user named `seanime` (UID: `1000`, GID: `1000`).
-
-1.  **Update Volume Paths:** You need to change your volume mapping for the config directory.
-    - **Old:** `/root/.config/Seanime`
-    - **New:** `/home/seanime/.config/Seanime`
-2.  **Check Permissions:** Ensure the directories you mount on your host (config and data) are readable and writable by **UID 1000**.
-
----
-
 ## Table of Contents
 
 - [Image Variants](#image-variants)
@@ -150,11 +138,11 @@ services:
 
 ### Advanced Examples
 
-For complex setups, such as running Seanime behind a VPN or using Tailscale, please refer to the **Examples** directory:
+For complex setups, such as running Seanime behind a VPN with remote access, refer to the **Examples** directory:
 
 - **[01-basic](examples/01-basic)**: The standard setup (shown above).
 - **[02-vpn-gluetun](examples/02-vpn-gluetun)**: Routes Seanime and Transmission through a WireGuard VPN (Gluetun) with healthchecks.
-- **[03-tailscale-vpn-bridge](examples/03-tailscale-vpn-bridge)**: Advanced routing using `tsbridge` (Tailscale) + Gluetun.
+- **[03-vpn-pangolin-bridge](examples/03-vpn-pangolin-bridge)**: Gluetun VPN + remote access via [Pangolin](https://github.com/fosrl/pangolin) (Newt agent).
 
 ## Configuration
 
@@ -167,9 +155,11 @@ For complex setups, such as running Seanime behind a VPN or using Tailscale, ple
 - **`/home/seanime/.config/Seanime`**: Stores the configuration files for Seanime.
 - **`/data`**: A common directory for storing your media files. Recommended for organization.
 
-> **Permissions Note:** The container runs as user `1000`. Ensure your host directories mapped to these volumes are owned by UID `1000` to prevent "Permission Denied" errors.
+> **Permissions Note:** The container runs as UID `1000` (a user named `seanime`). Your host directories must be readable and writable by that UID to prevent "Permission Denied" errors.
 >
-> **Quick Fix:** Run `mkdir -p ./config/seanime ./data` on your host _before_ starting Docker. This ensures the folders are owned by you, not root.
+> **Quick fix:** Run `mkdir -p ./config/seanime ./data` on your host _before_ starting Docker. This ensures the folders are owned by you, not root.
+>
+> If you still get errors, add `user: "UID:GID"` to the `seanime` service in your compose file, where UID and GID match the owner of your host directories (`stat -c "%u:%g" ./config`). Alternatively, run `sudo chown -R 1000:1000 ./config ./data` to transfer ownership to the container's internal user.
 
 ### Environment Variables
 

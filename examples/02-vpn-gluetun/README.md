@@ -68,7 +68,15 @@ docker ps
 **Permission Errors / Container Crashing:**
 If Seanime crashes immediately, check the logs (`docker logs seanime`). If you see **Permission Denied** errors, your user (UID 1000) likely does not own the config or data folders.
 
-**Fix:** Manually set the ownership to UID 1000:
+Option A: add `user: "UID:GID"` to the `seanime` service in your compose file, where UID and GID match the owner of your host directories. Run `stat -c "%u:%g" ./config` to find them:
+
+```yaml
+seanime:
+  user: "1000:1000"  # replace with your host directory's UID:GID
+  ...
+```
+
+Option B: transfer ownership of the host directories to UID 1000 (the container's internal user):
 
 ```bash
 sudo chown -R 1000:1000 ./config ./data

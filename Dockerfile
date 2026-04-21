@@ -36,11 +36,11 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 FROM --platform=$TARGETPLATFORM alpine:3.23 AS os-base
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
-        ca-certificates \
-        tzdata \
-        zlib \
-        expat \
-        libpng && \
+    ca-certificates \
+    tzdata \
+    zlib \
+    expat \
+    libpng && \
     addgroup -S seanime -g 1000 && \
     adduser -S seanime -G seanime -u 1000 -h /home/seanime && \
     mkdir -p /home/seanime/.config/Seanime && \
@@ -83,7 +83,8 @@ RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
     apk upgrade --no-cache && \
     PACKAGES="jellyfin-ffmpeg mesa-va-gallium opencl-icd-loader libva-utils" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-    PACKAGES="$PACKAGES intel-media-driver intel-compute-runtime"; \
+    PACKAGES="$PACKAGES libva-intel-driver intel-media-driver libvpl intel-compute-runtime"; \
+    apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing onevpl-intel-gpu; \
     fi && \
     apk add --no-cache $PACKAGES && \
     ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg && \
