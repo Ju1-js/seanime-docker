@@ -5,8 +5,6 @@
 
 A simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a self-hosted anime streaming platform.
 
-Now available in **Standard**, **Hardware Accelerated (Intel/AMD)**, and **NVIDIA CUDA** variants.
-
 ## Table of Contents
 
 - [Image Variants](#image-variants)
