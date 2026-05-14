@@ -21,11 +21,13 @@ RUN go mod download
 COPY --link src/ .
 
 # Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141, CVE-2026-33809
-RUN go get github.com/pion/dtls/v3@v3.1.2 && \
-    go get github.com/refraction-networking/utls@v1.8.2 && \
-    go get golang.org/x/net@v0.51.0 && \
-    go get golang.org/x/image@v0.38.0 && \
-    go mod tidy
+COPY --link scripts/patch-deps.go ./patch-deps.go
+RUN go get golang.org/x/mod/semver && \
+    go run patch-deps.go \
+    "github.com/pion/dtls/v3@v3.1.2" \
+    "github.com/refraction-networking/utls@v1.8.2" \
+    "golang.org/x/net@v0.51.0" \
+    "golang.org/x/image@v0.38.0"
 
 COPY --from=ui-builder --link /tmp/build/out /tmp/build/web
 RUN --mount=type=cache,target=/root/.cache/go-build \

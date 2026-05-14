@@ -27,3 +27,4 @@ config
 
 src/.git
 !scripts/healthcheck.sh
+!scripts/patch-deps.go
