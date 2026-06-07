@@ -5,7 +5,7 @@ FROM --platform=$BUILDPLATFORM oven/bun:1-slim AS ui-builder
 WORKDIR /tmp/build
 COPY --link src/seanime-web/package.json src/seanime-web/package-lock.json* ./
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile
+    bun install
 COPY --link src/seanime-web ./
 ENV NODE_ENV=production
 RUN bun run build
