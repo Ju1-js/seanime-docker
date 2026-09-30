@@ -20,13 +20,13 @@ COPY --link src/go.mod src/go.sum ./
 RUN go mod download
 COPY --link src/ .
 
-# Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141, CVE-2026-33809, CVE-2026-29181, CVE-2026-54908, CVE-2026-54909
+# Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141, CVE-2026-33809, CVE-2026-29181, CVE-2026-41178, CVE-2026-54908, CVE-2026-54909
 COPY --link scripts/patch-deps.go ./patch-deps.go
 RUN go get golang.org/x/mod/semver && \
     go run patch-deps.go \
     "github.com/pion/dtls/v3@v3.1.4" \
     "github.com/pion/stun/v3@v3.1.5" \
-    "go.opentelemetry.io/otel@v1.41.0" \
+    "go.opentelemetry.io/otel@v1.46.0" \
     "github.com/refraction-networking/utls@v1.8.2" \
     "golang.org/x/net@v0.51.0" \
     "golang.org/x/image@v0.38.0"
