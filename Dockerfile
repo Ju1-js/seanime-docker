@@ -20,11 +20,13 @@ COPY --link src/go.mod src/go.sum ./
 RUN go mod download
 COPY --link src/ .
 
-# Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141, CVE-2026-33809
+# Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141, CVE-2026-33809, CVE-2026-29181, CVE-2026-54908, CVE-2026-54909
 COPY --link scripts/patch-deps.go ./patch-deps.go
 RUN go get golang.org/x/mod/semver && \
     go run patch-deps.go \
-    "github.com/pion/dtls/v3@v3.1.2" \
+    "github.com/pion/dtls/v3@v3.1.4" \
+    "github.com/pion/stun/v3@v3.1.5" \
+    "go.opentelemetry.io/otel@v1.41.0" \
     "github.com/refraction-networking/utls@v1.8.2" \
     "golang.org/x/net@v0.51.0" \
     "golang.org/x/image@v0.38.0"
@@ -35,7 +37,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     if [ "$TARGETARCH" = "arm" ] && [ "$TARGETVARIANT" = "v7" ]; then export GOARM=7; fi && \
     go build -tags timetzdata -o seanime -trimpath -ldflags="-s -w"
 
-FROM --platform=$TARGETPLATFORM alpine:3.23 AS os-base
+FROM --platform=$TARGETPLATFORM alpine:3.24 AS os-base
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
     ca-certificates \
@@ -70,7 +72,8 @@ FROM base AS slim
 USER root
 RUN sed -i -e 's/^#\s*\(.*\/\)community/\1community/' /etc/apk/repositories && \
     apk update && \
-    apk add --no-cache jellyfin-ffmpeg --repository=https://repo.jellyfin.org/releases/alpine/ && \
+    apk upgrade --no-cache && \
+    apk add --no-cache jellyfin-ffmpeg && \
     ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg && \
     ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe
 
@@ -97,7 +100,7 @@ RUN addgroup seanime video || true && \
 
 USER 1000
 
-FROM nvidia/cuda:13.2.1-base-ubuntu24.04 AS cuda
+FROM nvidia/cuda:13.4.2-base-ubuntu26.04 AS cuda
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV SEANIME_SERVER_HOST=0.0.0.0
@@ -107,8 +110,10 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates wget gnupg && \
     mkdir -p /etc/apt/keyrings && \
     wget -qO - https://repo.jellyfin.org/jellyfin_team.gpg.key | gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/jellyfin.gpg] https://repo.jellyfin.org/ubuntu noble main" > /etc/apt/sources.list.d/jellyfin.list && \
+    . /etc/os-release && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/jellyfin.gpg] https://repo.jellyfin.org/ubuntu ${UBUNTU_CODENAME} main" > /etc/apt/sources.list.d/jellyfin.list && \
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends jellyfin-ffmpeg7 && \
     ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg && \
     ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe && \
