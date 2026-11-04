@@ -5,6 +5,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:compose": "bun scripts/check-compose.ts",
+    "check:patches": "bun scripts/check-patches.ts",
     "test:image": "bun scripts/test-image.ts",
     "smoke:image": "bun scripts/smoke-image.ts"
   },

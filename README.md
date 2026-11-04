@@ -188,6 +188,10 @@ Compose examples when their configs change. Compose validation uses the example 
 does not start containers. If Prettier changes a file, review and stage it again before committing.
 Use `bun run format` to format the whole repo or `bun run format:check` to check it.
 
+Run `bun run check:patches` with Go and Bash installed to review the upstream release in
+`.version`. It prints the same Go dependency table as the publish workflow and uses a temporary
+source directory.
+
 Build and smoke-test an image with Docker Buildx and Bash (Git for Windows provides Bash on Windows):
 
 ```sh

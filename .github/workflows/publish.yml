@@ -141,18 +141,7 @@ jobs:
       - name: Review Go dependency patches
         if: needs.check.outputs.BUILD_TYPE == 'release'
         continue-on-error: true
-        run: |
-          tool_dir=$(mktemp -d)
-          trap 'rm -rf "$tool_dir"' EXIT
-          cp scripts/patch-deps.go "$tool_dir/"
-          (
-            cd "$tool_dir"
-            go mod init local/patch-review
-            go get golang.org/x/mod@v0.42.0
-            go build -o patch-review patch-deps.go
-          )
-          cd src
-          "$tool_dir/patch-review" -audit >> "$GITHUB_STEP_SUMMARY"
+        run: bash scripts/review-patches.sh src >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

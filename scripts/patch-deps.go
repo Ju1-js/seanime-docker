@@ -15,9 +15,8 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141, CVE-2026-33809,
-// CVE-2026-29181, CVE-2026-41178, CVE-2026-54908, CVE-2026-54909,
-// CVE-2026-118264, CVE-2026-118651, CVE-2026-118653, CVE-2026-78663, and GO-2026-5932.
+// Temporary security minimums for the upstream module graph
+// Record advisory IDs in the commit that adds or updates a minimum
 var patches = []struct {
 	path    string
 	minimum string
@@ -26,10 +25,8 @@ var patches = []struct {
 	{"github.com/pion/dtls/v3", "v3.1.4"},
 	{"github.com/pion/stun/v3", "v3.1.5"},
 	{"go.opentelemetry.io/otel", "v1.46.0"},
-	{"github.com/refraction-networking/utls", "v1.8.2"},
 	{"golang.org/x/net", "v0.62.0"},
 	{"golang.org/x/crypto", "v0.58.1-0.20261009181718-2f1f834330b2"},
-	{"golang.org/x/image", "v0.38.0"},
 }
 
 type module struct {
