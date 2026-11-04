@@ -10,10 +10,10 @@ A simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a s
 - [Image Variants](#image-variants)
 - [Platform Support](#platform-support)
 - [Usage](#usage)
-    - [Docker CLI](#docker-cli)
-    - [Docker Compose](#docker-compose)
-    - [Hardware Acceleration](#hardware-acceleration)
-    - [Advanced Examples](#advanced-examples)
+  - [Docker CLI](#docker-cli)
+  - [Docker Compose](#docker-compose)
+  - [Hardware Acceleration](#hardware-acceleration)
+  - [Advanced Examples](#advanced-examples)
 - [Configuration](#configuration)
 - [Contributing](#contributing)
 - [License](#license)
@@ -80,15 +80,15 @@ For a standard setup, create a `docker-compose.yml`:
 
 ```yaml
 services:
-    seanime:
-        image: ju1js/seanime:latest
-        container_name: seanime
-        ports:
-            - "43211:43211"
-        volumes:
-            - ./config/seanime:/home/seanime/.config/Seanime
-            - ./data:/data
-        restart: unless-stopped
+  seanime:
+    image: ju1js/seanime:latest
+    container_name: seanime
+    ports:
+      - "43211:43211"
+    volumes:
+      - ./config/seanime:/home/seanime/.config/Seanime
+      - ./data:/data
+    restart: unless-stopped
 ```
 
 ### Hardware Acceleration
@@ -99,16 +99,16 @@ Depending on your hardware, update the image tag and device mappings in your `do
 
 ```yaml
 services:
-    seanime:
-        image: ju1js/seanime:latest-hwaccel
-        devices:
-            - /dev/dri:/dev/dri # Passes the iGPU
-        ports:
-            - "43211:43211"
-        volumes:
-            - ./config/seanime:/home/seanime/.config/Seanime
-            - ./data:/data
-        restart: unless-stopped
+  seanime:
+    image: ju1js/seanime:latest-hwaccel
+    devices:
+      - /dev/dri:/dev/dri # Passes the iGPU
+    ports:
+      - "43211:43211"
+    volumes:
+      - ./config/seanime:/home/seanime/.config/Seanime
+      - ./data:/data
+    restart: unless-stopped
 ```
 
 #### Option B: NVIDIA (NVENC)
@@ -117,21 +117,21 @@ Ensure you have the **NVIDIA Container Toolkit** installed on your host.
 
 ```yaml
 services:
-    seanime:
-        image: ju1js/seanime:latest-cuda
-        deploy:
-            resources:
-                reservations:
-                    devices:
-                        - driver: nvidia
-                          count: 1
-                          capabilities: [gpu, video]
-        ports:
-            - "43211:43211"
-        volumes:
-            - ./config/seanime:/home/seanime/.config/Seanime
-            - ./data:/data
-        restart: unless-stopped
+  seanime:
+    image: ju1js/seanime:latest-cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, video]
+    ports:
+      - "43211:43211"
+    volumes:
+      - ./config/seanime:/home/seanime/.config/Seanime
+      - ./data:/data
+    restart: unless-stopped
 ```
 
 ### Advanced Examples
@@ -167,6 +167,36 @@ For complex setups, such as running Seanime behind a VPN with remote access, ref
 ## Contributing
 
 Contributions are welcome! If you have any suggestions, bug reports, or feature requests, please open an issue or submit a pull request on the [GitHub repository](https://github.com/Ju1-js/seanime-docker).
+
+### Local checks
+
+Install Bun, uv, and Docker Compose, then run these commands from the repository root:
+
+```sh
+bun install --frozen-lockfile
+uvx pre-commit install
+uvx pre-commit run --all-files
+```
+
+The commit hook formats staged Markdown, YAML, JSON, and TypeScript with Prettier and validates the
+Compose examples when their configs change. Compose validation uses the example environment files and
+does not start containers. If Prettier changes a file, review and stage it again before committing.
+Use `bun run format` to format the whole repo or `bun run format:check` to check it.
+
+Build and smoke-test an image with Docker Buildx and Bash (Git for Windows provides Bash on Windows):
+
+```sh
+bun run test:image
+bun run test:image hwaccel
+bun run test:image cuda
+```
+
+The default target is `slim`. The command fetches the release in `.version` into a temporary build
+context, builds and loads `seanime:local-<target>`, then checks startup, health, FFmpeg, and FFprobe.
+It cleans up the build context, test container, and anonymous volumes. It publishes no host ports.
+The manual pre-commit hook runs the same default command. Use `bun run smoke:image seanime:local-slim`
+to retest an image already loaded into Docker. Run a hardware transcode separately when changing GPU
+support.
 
 ## License
 

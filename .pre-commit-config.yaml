@@ -1,0 +1,21 @@
+minimum_pre_commit_version: 4.7.0
+repos:
+  - repo: local
+    hooks:
+      - id: prettier
+        name: Prettier format
+        entry: bun run prettier --write --ignore-unknown
+        language: unsupported
+        files: '\.(json|md|ts|ya?ml)$'
+      - id: compose-config
+        name: Validate Compose examples
+        entry: bun run check:compose
+        language: unsupported
+        pass_filenames: false
+        files: '^(examples/.*(compose\.ya?ml|\.env\.example)$|scripts/check-compose\.ts$|package\.json$|\.pre-commit-config\.yaml$)'
+      - id: image-smoke
+        name: Build and smoke-test the standard Seanime image
+        entry: bun run test:image
+        language: unsupported
+        pass_filenames: false
+        stages: [manual]
