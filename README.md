@@ -3,7 +3,7 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/ju1js/seanime.svg)](https://hub.docker.com/r/ju1js/seanime)
 [![Publish Docker image](https://github.com/Ju1-js/seanime-docker/actions/workflows/publish.yml/badge.svg)](https://github.com/Ju1-js/seanime-docker/actions/workflows/publish.yml)
 
-A simple, multi-arch Docker image for [Seanime](https://seanime.rahim.app/), a self-hosted anime streaming platform.
+A simple, multi-arch Docker image for [Seanime](https://github.com/5rahim/seanime), a self-hosted anime streaming platform.
 
 ## Table of Contents
 
@@ -141,6 +141,7 @@ For complex setups, such as running Seanime behind a VPN with remote access, ref
 - **[01-basic](examples/01-basic)**: The standard setup (shown above).
 - **[02-vpn-gluetun](examples/02-vpn-gluetun)**: Routes Seanime and Transmission through a WireGuard VPN (Gluetun) with healthchecks.
 - **[03-vpn-pangolin-bridge](examples/03-vpn-pangolin-bridge)**: Gluetun VPN + remote access via [Pangolin](https://github.com/fosrl/pangolin) (Newt agent).
+- **[04-vpn-tailscale](examples/04-vpn-tailscale)**: Recommended Raspberry Pi remote-playback setup. Use Tailscale Serve for private access or Funnel for public access.
 
 ## Configuration
 

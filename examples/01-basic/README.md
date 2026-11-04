@@ -1,6 +1,6 @@
 # Basic Setup
 
-This configuration runs Seanime in a standard Docker container. It is the recommended setup for local networks where VPN routing is not required.
+This configuration runs [Seanime](https://github.com/5rahim/seanime) in a standard Docker container. It is the recommended setup for local networks where VPN routing is not required.
 
 ## Prerequisites (v3.2.3+)
 

@@ -1,6 +1,6 @@
 # Seanime + VPN (Gluetun) + Transmission
 
-This setup runs Seanime and Transmission behind a VPN using [Gluetun](https://github.com/qdm12/gluetun).
+This setup runs [Seanime](https://github.com/5rahim/seanime) and [Transmission](https://transmissionbt.com/) behind a VPN using [Gluetun](https://github.com/qdm12/gluetun).
 
 ## Prerequisites (v3.2.3+)
 

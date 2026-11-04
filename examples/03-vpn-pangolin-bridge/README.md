@@ -1,6 +1,6 @@
 # Seanime + VPN (Gluetun) + Pangolin Bridge
 
-This setup routes traffic through a VPN using [Gluetun](https://github.com/qdm12/gluetun) and exposes Seanime remotely via [Pangolin](https://github.com/fosrl/pangolin) with the [Newt](https://github.com/fosrl/newt) tunnel agent, without port forwarding.
+This setup runs [Seanime](https://github.com/5rahim/seanime) and [Transmission](https://transmissionbt.com/) behind a VPN using [Gluetun](https://github.com/qdm12/gluetun). It exposes Seanime remotely through [Pangolin](https://github.com/fosrl/pangolin) using the [Newt](https://github.com/fosrl/newt) tunnel agent.
 
 ## Pangolin
 
@@ -59,13 +59,13 @@ Under your site, create a new Resource with target `http://gluetun:43211`. Pango
 
 Seanime's API and media streaming paths must bypass Pangolin's auth or playback will break. Under Resource Rules, add these Bypass Auth rules:
 
-| Path | Match type |
-|---|---|
-| `/api/*` | Path |
-| `/events` | Path |
-| `/manifest.json` | Path |
-| `/mediastream/*` | Path |
-| `/directstream/*` | Path |
+| Path              | Match type |
+| ----------------- | ---------- |
+| `/api/*`          | Path       |
+| `/events`         | Path       |
+| `/manifest.json`  | Path       |
+| `/mediastream/*`  | Path       |
+| `/directstream/*` | Path       |
 
 ### 6. Access controls (optional)
 
@@ -78,6 +78,7 @@ Pangolin supports SSO, password protection, PIN codes, and email whitelisting. S
 **Transmission:** Create a second resource pointing to `http://gluetun:9091` for remote access.
 
 To link Transmission in Seanime, go to Settings > Torrent Client and set:
+
 - Host: `localhost` (shares the Gluetun network)
 - Port: `9091`
 - Username/Password: as set in `.env`

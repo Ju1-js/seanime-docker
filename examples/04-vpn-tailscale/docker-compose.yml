@@ -1,0 +1,50 @@
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      VPN_SERVICE_PROVIDER: ${VPN_SERVICE_PROVIDER}
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY}
+      WIREGUARD_ADDRESSES: ${WIREGUARD_ADDRESSES}
+      WIREGUARD_IMPLEMENTATION: ${WIREGUARD_IMPLEMENTATION:-auto}
+      SERVER_COUNTRIES: ${SERVER_COUNTRIES}
+      FIREWALL_INPUT_PORTS: "43211"
+      TZ: ${TZ}
+    ports:
+      - "127.0.0.1:43211:43211"
+    restart: unless-stopped
+
+  seanime:
+    image: ju1js/seanime:latest
+    network_mode: service:gluetun
+    volumes:
+      - ./config/seanime:/home/seanime/.config/Seanime
+      - ./data:/data
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    restart: unless-stopped
+
+  transmission:
+    image: lscr.io/linuxserver/transmission:latest
+    network_mode: service:gluetun
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+      USER: ${TRANSMISSION_USER}
+      PASS: ${TRANSMISSION_PASS}
+      PEERPORT: ${TRANSMISSION_PEER_PORT}
+    volumes:
+      - ./config/transmission:/config
+      - ./data/complete:/data
+      - ./data/complete:/downloads/complete
+      - ./data/incomplete:/downloads/incomplete
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    restart: unless-stopped
