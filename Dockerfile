@@ -20,15 +20,17 @@ COPY --link src/go.mod src/go.sum ./
 RUN go mod download
 COPY --link src/ .
 
-# Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141, CVE-2026-33809, CVE-2026-29181, CVE-2026-41178, CVE-2026-54908, CVE-2026-54909
+# Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141, CVE-2026-33809, CVE-2026-29181, CVE-2026-41178, CVE-2026-54908, CVE-2026-54909, CVE-2026-118264, CVE-2026-118651, CVE-2026-118653, CVE-2026-78663, GO-2026-5932
 COPY --link scripts/patch-deps.go ./patch-deps.go
 RUN go get golang.org/x/mod/semver && \
     go run patch-deps.go \
+    "github.com/labstack/echo/v4@v4.16.3" \
     "github.com/pion/dtls/v3@v3.1.4" \
     "github.com/pion/stun/v3@v3.1.5" \
     "go.opentelemetry.io/otel@v1.46.0" \
     "github.com/refraction-networking/utls@v1.8.2" \
-    "golang.org/x/net@v0.51.0" \
+    "golang.org/x/net@v0.62.0" \
+    "golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2" \
     "golang.org/x/image@v0.38.0"
 
 COPY --from=ui-builder --link /tmp/build/out /tmp/build/web
@@ -106,7 +108,10 @@ ENV NVIDIA_VISIBLE_DEVICES=all
 ENV SEANIME_SERVER_HOST=0.0.0.0
 ENV SEANIME_SERVER_PORT=43211
 
-RUN apt-get update && \
+# Temporarily remove Ubuntu's unused Pebble service manager.
+# Drop this workaround once the NVIDIA base ships a fixed binary or omits it.
+RUN rm -f /usr/bin/pebble && \
+    apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates wget gnupg && \
     mkdir -p /etc/apt/keyrings && \
     wget -qO - https://repo.jellyfin.org/jellyfin_team.gpg.key | gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg && \

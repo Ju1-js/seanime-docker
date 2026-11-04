@@ -93,6 +93,10 @@ services:
 
 ### Hardware Acceleration
 
+The CUDA image temporarily removes the unused Pebble service manager inherited from the NVIDIA
+Ubuntu base. Seanime starts directly. This workaround will be removed once the base image ships
+a fixed Pebble binary or omits it.
+
 Depending on your hardware, update the image tag and device mappings in your `docker-compose.yml`.
 
 #### Option A: Intel (QuickSync)
