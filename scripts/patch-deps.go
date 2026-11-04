@@ -4,106 +4,120 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
-	"strings"
 
 	"golang.org/x/mod/semver"
 )
 
-func ensureVPrefix(v string) string {
-	if v != "" && !strings.HasPrefix(v, "v") {
-		return "v" + v
-	}
-	return v
+// Fixes: CVE-2026-26014, CVE-2026-26995, CVE-2026-27141, CVE-2026-33809,
+// CVE-2026-29181, CVE-2026-41178, CVE-2026-54908, CVE-2026-54909,
+// CVE-2026-118264, CVE-2026-118651, CVE-2026-118653, CVE-2026-78663, and GO-2026-5932.
+var patches = []struct {
+	path    string
+	minimum string
+}{
+	{"github.com/labstack/echo/v4", "v4.16.3"},
+	{"github.com/pion/dtls/v3", "v3.1.4"},
+	{"github.com/pion/stun/v3", "v3.1.5"},
+	{"go.opentelemetry.io/otel", "v1.46.0"},
+	{"github.com/refraction-networking/utls", "v1.8.2"},
+	{"golang.org/x/net", "v0.62.0"},
+	{"golang.org/x/crypto", "v0.58.1-0.20261009181718-2f1f834330b2"},
+	{"golang.org/x/image", "v0.38.0"},
 }
 
-func main() {
-	args := os.Args[1:]
-	if len(args) == 0 {
-		return
-	}
+type module struct {
+	Path    string
+	Version string
+	Replace *module
+}
 
-	type patchRequest struct {
-		pkg           string
-		secureVersion string
-	}
-
-	requestedOrder := make([]patchRequest, 0, len(args))
-
-	for _, arg := range args {
-		pkg, version, ok := strings.Cut(arg, "@")
-		if !ok || pkg == "" || version == "" {
-			log.Fatalf("Invalid patch format: %s", arg)
-		}
-
-		secureVersion := ensureVPrefix(version)
-
-		if !semver.IsValid(secureVersion) {
-			log.Fatalf("Invalid semver for %s: %s", pkg, secureVersion)
-		}
-
-		requestedOrder = append(requestedOrder, patchRequest{
-			pkg:           pkg,
-			secureVersion: secureVersion,
-		})
-	}
-
-	cmd := exec.Command("go", "list", "-m", "-f", "{{.Path}}\t{{.Version}}", "all")
-	var out bytes.Buffer
-	cmd.Stdout = &out
+func selectedModules() map[string]module {
+	cmd := exec.Command("go", "list", "-mod=readonly", "-m", "-json", "all")
 	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
+	out, err := cmd.Output()
+	if err != nil {
 		log.Fatalf("go list failed: %v", err)
 	}
 
-	currentVersions := make(map[string]string)
-	for _, line := range strings.Split(out.String(), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
+	modules := make(map[string]module)
+	decoder := json.NewDecoder(bytes.NewReader(out))
+	for {
+		var selected module
+		err := decoder.Decode(&selected)
+		if err == io.EOF {
+			return modules
 		}
-		currentVersions[fields[0]] = ensureVPrefix(fields[1])
+		if err != nil {
+			log.Fatalf("Invalid module list: %v", err)
+		}
+		modules[selected.Path] = selected
+	}
+}
+
+func main() {
+	audit := flag.Bool("audit", false, "report upstream patch status without changing dependencies")
+	flag.Parse()
+	modules := selectedModules()
+
+	if *audit {
+		fmt.Println("### Go dependency patch review")
+		fmt.Println()
+		fmt.Println("| Module | Upstream version | Fixed minimum | Status |")
+		fmt.Println("| --- | --- | --- | --- |")
 	}
 
-	patched := make([]string, 0, len(requestedOrder))
-	for _, request := range requestedOrder {
-		pkg := request.pkg
-		secureVersion := request.secureVersion
-
-		currentVersion := currentVersions[pkg]
-		if currentVersion == "" {
+	var upgrades []string
+	for _, patch := range patches {
+		selected, present := modules[patch.path]
+		version := selected.Version
+		comparison := semver.Compare(version, patch.minimum)
+		if *audit {
+			status := "Keep"
+			switch {
+			case !present:
+				version = "Absent"
+				status = "Review for removal"
+			case selected.Replace != nil:
+				status = "Review replacement"
+			case comparison >= 0:
+				status = "Review for removal"
+			}
+			fmt.Printf("| %s | %s | %s | %s |\n", patch.path, version, patch.minimum, status)
 			continue
 		}
-
-		cmp := semver.Compare(currentVersion, secureVersion)
-
-		if cmp < 0 {
-			log.Printf("Patching %s: %s -> %s", pkg, currentVersion, secureVersion)
-			patched = append(patched, pkg+"@"+secureVersion)
-		} else if cmp > 0 {
-			fmt.Printf("::warning::Upstream version (%s) for %s is newer than requested patch (%s).\n", currentVersion, pkg, secureVersion)
+		if !present {
+			continue
+		}
+		if comparison < 0 {
+			log.Printf("Patching %s: %s -> %s", patch.path, version, patch.minimum)
+			upgrades = append(upgrades, patch.path+"@"+patch.minimum)
+		} else {
+			log.Printf("Review patch for removal: %s is already at %s (minimum %s)", patch.path, version, patch.minimum)
 		}
 	}
+	if *audit {
+		return
+	}
 
-	if len(patched) > 0 {
-		getCmd := exec.Command("go", append([]string{"get"}, patched...)...)
-		getCmd.Stdout = os.Stdout
-		getCmd.Stderr = os.Stderr
-
-		if err := getCmd.Run(); err != nil {
+	if len(upgrades) > 0 {
+		cmd := exec.Command("go", append([]string{"get"}, upgrades...)...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
 			log.Fatalf("Failed to patch dependencies: %v", err)
 		}
 	}
-
-	// Clean up
-	tidyCmd := exec.Command("go", "mod", "tidy")
-	tidyCmd.Stdout = os.Stdout
-	tidyCmd.Stderr = os.Stderr
-	if err := tidyCmd.Run(); err != nil {
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
 		log.Fatalf("go mod tidy failed: %v", err)
 	}
 }
